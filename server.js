@@ -5,12 +5,13 @@ const globalErrorHandler = require("./controllers/error.controller.js");
 const cors = require("cors");
 const morgan = require("morgan");
 const mongoose = require("mongoose");
+const AppError = require("./utils/appError.js");
 
 console.log("Server initialization started...".yellow);
 
 const app = express();
 
-// 1) GLOBAL MIDDLEWARES
+// GLOBAL MIDDLEWARES
 const options = {
   origin: "*",
 };
@@ -23,20 +24,22 @@ if (AppConfig.env !== "production") {
 }
 
 // Body parser, reading data from body into req.body
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json());
 
 // ROUTES
-app.get("/", (req, res) => {
+app.get("/", (_, res) => {
   res.json({ message: "Server started successfully", env: AppConfig.env });
 });
+app.use("/", require("./routes/auth.routes.js"));
 
-app.use((req, res, next) => {
+app.use((req, _, next) => {
   next(new AppError(`Can't find ${req.originalUrl} on this server`, 404));
 });
 
 // Global error middleware
 app.use(globalErrorHandler);
 
+// Server initialization
 async function initialize() {
   await mongoose.connect(AppConfig.database);
   console.log("DB connection successful".green.bold);

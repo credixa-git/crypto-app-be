@@ -1,4 +1,11 @@
-const router = require("express").Router();
+const express = require("express");
+const router = express.Router();
 
-router.post("/signup", signup);
-router.post("/login", login);
+const schemaValidator = require("../middlewares/schema.validator");
+const { signupSchema, loginSchema } = require("../schemas/auth.schema");
+const { signup, login } = require("../controllers/auth.controller");
+
+router.post("/signup", schemaValidator(signupSchema), signup);
+router.post("/login", schemaValidator(loginSchema), login);
+
+module.exports = router;

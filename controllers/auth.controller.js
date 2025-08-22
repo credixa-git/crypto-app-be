@@ -2,8 +2,10 @@ const jwt = require("jsonwebtoken");
 const { promisify } = require("util");
 
 const AppConfig = require("../config/appConfig");
-const catchAsync = require("../../utils/catchAsync");
-const AppError = require("../../utils/appError");
+const catchAsync = require("../utils/catchAsync");
+const AppError = require("../utils/appError");
+
+const User = require("../models/user.model");
 
 const signToken = (id) => {
   return jwt.sign({ id }, AppConfig.jwt.secret, {
@@ -20,6 +22,7 @@ const createAndSendToken = (user, statusCode, res, redirect = false) => {
     ),
     httpOnly: true,
   };
+
   // for https only
   if (AppConfig.env === "production") cookieOptions.secure = true;
 
@@ -27,26 +30,13 @@ const createAndSendToken = (user, statusCode, res, redirect = false) => {
 
   // remove password from output
   user.password = undefined;
-  if (redirect) {
-    return res.redirect(
-      AppConfig.reactUrl + `/signin?auth=oauth&token=${token}`
-    );
-  } else {
-    return sendSuccessResponse(null, res, statusCode, {
-      token,
-      user,
-      isPro: false,
-    });
-  }
+  return sendSuccessResponse(null, res, statusCode, {
+    token,
+    user,
+  });
 };
 
 const signup = catchAsync(async (req, res, next) => {
-  const { error } = signupSchema.validate(req.body);
-
-  if (error) {
-    return next(new AppError(error.details[0].message, 400));
-  }
-
   const existingUser = await User.findOne({ email: req.body.email });
   if (existingUser) {
     return next(
@@ -54,33 +44,14 @@ const signup = catchAsync(async (req, res, next) => {
     );
   }
 
-  // const referedBy = await User.findOne({ uniqueReferLink: req.body.referId });
-
-  const uniqueReferLink = randomstring.generate({
-    length: 10,
-    charset: ["alphabetic", "numeric"],
-  });
-
   const newUser = await User.create({
     ...req.body,
-    MOL: "EMAIL",
-    uniqueReferLink,
   });
-  // await ReferList.create({
-  //   referedBy: referedBy._id,
-  //   referedTo: newUser._id,
-  // });
 
   createAndSendToken(newUser, 201, res);
 });
 
 const login = catchAsync(async (req, res, next) => {
-  const { error } = loginSchema.validate(req.body);
-
-  if (error) {
-    return next(new AppError(error.details[0].message, 400));
-  }
-
   const { email, password } = req.body;
 
   // 1) check if email and password exists
@@ -158,3 +129,9 @@ const protect = catchAsync(async (req, res, next) => {
     return next(new AppError(error.message, 401));
   }
 });
+
+module.exports = {
+  signup,
+  login,
+  protect,
+};
