@@ -1,0 +1,77 @@
+const colors = require("colors");
+const express = require("express");
+const AppConfig = require("./config/appConfig.js");
+const mongoSanitize = require("express-mongo-sanitize");
+const globalErrorHandler = require("./controllers/error.controller.js");
+const cors = require("cors");
+const morgan = require("morgan");
+const mongoose = require("mongoose");
+
+console.log("Server initialization started...".yellow);
+
+const app = express();
+
+// 1) GLOBAL MIDDLEWARES
+const options = {
+  origin: "*",
+};
+// Add cross origin
+app.use(cors(options));
+
+// Development logging
+if (AppConfig.env !== "production") {
+  app.use(morgan("dev"));
+}
+
+// Body parser, reading data from body into req.body
+app.use(express.json({ limit: "1mb" }));
+
+// Data sanitization against NoSQL query injections
+app.use(mongoSanitize());
+
+// ROUTES
+app.get("/", (req, res) => {
+  res.json({ message: "Server started successfully", env: AppConfig.env });
+});
+
+app.use((req, res, next) => {
+  next(new AppError(`Can't find ${req.originalUrl} on this server`, 404));
+});
+
+// Global error middleware
+app.use(globalErrorHandler);
+
+async function initialize() {
+  await mongoose.connect(AppConfig.database);
+  console.log("DB connection successful".green.bold);
+
+  app.listen(AppConfig.port, (err) => {
+    console.log(`Server listening on port ${AppConfig.port}`.blue.bold);
+  });
+}
+
+// Handle uncaught exceptions
+process.on("uncaughtException", (err) => {
+  console.error("UNCAUGHT EXCEPTION! 💥 Shutting down...".red);
+  console.error(err.name, err.message);
+  process.exit(1);
+});
+
+// Handle unhandled promise rejections
+process.on("unhandledRejection", (err) => {
+  console.error("UNHANDLED REJECTION! 💥 Shutting down...".red);
+  console.error(err.name, err.message);
+  server.close(() => {
+    process.exit(1);
+  });
+});
+
+// Handle SIGTERM
+process.on("SIGTERM", () => {
+  console.log("👋 SIGTERM RECEIVED. Shutting down gracefully".yellow);
+  server.close(() => {
+    console.log("💥 Process terminated!".red);
+  });
+});
+
+initialize();
