@@ -1,7 +1,6 @@
 const colors = require("colors");
 const express = require("express");
 const AppConfig = require("./config/appConfig.js");
-const mongoSanitize = require("express-mongo-sanitize");
 const globalErrorHandler = require("./controllers/error.controller.js");
 const cors = require("cors");
 const morgan = require("morgan");
@@ -25,9 +24,6 @@ if (AppConfig.env !== "production") {
 
 // Body parser, reading data from body into req.body
 app.use(express.json({ limit: "1mb" }));
-
-// Data sanitization against NoSQL query injections
-app.use(mongoSanitize());
 
 // ROUTES
 app.get("/", (req, res) => {
