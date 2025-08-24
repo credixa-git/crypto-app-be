@@ -58,13 +58,13 @@ const submitKYC = catchAsync(async (req, res, next) => {
 
   try {
     // Generate file keys
-    const frontImageKey = s3Service.generateFileKey(
+    const frontImageKey = s3Service.generateKycFileKey(
       frontImage.originalname,
       userId,
       documentType,
       "front"
     );
-    const backImageKey = s3Service.generateFileKey(
+    const backImageKey = s3Service.generateKycFileKey(
       backImage.originalname,
       userId,
       documentType,
@@ -236,13 +236,13 @@ const resubmitKYC = catchAsync(async (req, res, next) => {
     }
 
     // Generate new file keys
-    const frontImageKey = s3Service.generateFileKey(
+    const frontImageKey = s3Service.generateKycFileKey(
       frontImage.originalname,
       userId,
       documentType,
       "front"
     );
-    const backImageKey = s3Service.generateFileKey(
+    const backImageKey = s3Service.generateKycFileKey(
       backImage.originalname,
       userId,
       documentType,

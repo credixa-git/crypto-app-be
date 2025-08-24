@@ -210,7 +210,6 @@ const createWallet = catchAsync(async (req, res, next) => {
 
     return sendSuccessResponse(res, 201, responseData);
   } catch (error) {
-    console.log(error);
     return next(
       new AppError("Failed to create wallet. Please try again.", 500)
     );
@@ -266,7 +265,6 @@ const updateWallet = catchAsync(async (req, res, next) => {
       // Generate new file key and upload
       const qrImageKey = s3Service.generateFileKey(
         req.file.originalname,
-        adminId,
         "wallet-qr",
         "qr"
       );

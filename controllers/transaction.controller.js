@@ -1,0 +1,144 @@
+const s3Service = require("../services/s3Service");
+
+const Transaction = require("../models/transaction.model");
+const Wallet = require("../models/wallet.model");
+const catchAsync = require("../utils/catchAsync");
+const AppError = require("../utils/appError");
+const { sendSuccessResponse } = require("../utils/apiResponse");
+
+const createTransaction = catchAsync(async (req, res, next) => {
+  const { wallet, transactionHash, amount, type } = req.body;
+  const user = req.user._id;
+  const screenshot = req.file;
+
+  // Validate wallet exists
+  const selectedWallet = await Wallet.findOne({
+    _id: wallet,
+    isActive: true,
+  });
+  if (!selectedWallet) {
+    return next(new AppError("No Supported wallet found", 400));
+  }
+
+  // Validate amount
+  if (
+    !(
+      selectedWallet.minimumAmount === 0 && selectedWallet.maximumAmount == 0
+    ) &&
+    (amount < selectedWallet.minimumAmount ||
+      amount > selectedWallet.maximumAmount)
+  ) {
+    return next(
+      new AppError(
+        `Amount must be between ${selectedWallet.minimumAmount} and ${selectedWallet.maximumAmount}`,
+        400
+      )
+    );
+  }
+
+  const key = s3Service.generateFileKey(
+    screenshot.originalname,
+    "transaction",
+    `${user}/${transactionHash}`
+  );
+
+  await s3Service.uploadFile(screenshot.buffer, key, screenshot.mimetype);
+
+  const transaction = await Transaction.create({
+    userId: user,
+    wallet,
+    transactionHash,
+    screenshot: { key },
+    amount,
+    type,
+    status: "pending",
+  });
+
+  sendSuccessResponse(res, 201, {
+    message: "Transaction created",
+    transaction,
+  });
+});
+
+const getAllTransactions = catchAsync(async (req, res, next) => {
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+
+  const skip = (page - 1) * limit;
+  const filter = { status: "pending" };
+
+  if (req.query.status) filter.status = req.query.status;
+  if (req.query.type) filter.type = req.query.type;
+
+  const [transactions, total] = await Promise.all([
+    Transaction.find(filter)
+      .populate("userId", "name email")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit),
+    Transaction.countDocuments(filter),
+  ]);
+
+  const totalPages = Math.ceil(total / limit);
+
+  const responseData = {
+    transactions,
+    pagination: {
+      currentPage: page,
+      totalPages,
+      totalItems: total,
+      itemsPerPage: limit,
+    },
+  };
+  sendSuccessResponse(res, 200, responseData);
+});
+
+const getTransactionById = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+  if (!id) return next(new AppError("Provide a valid id of transaction"));
+
+  const transaction = await Transaction.findById(id);
+
+  const url = await s3Service.generatePresignedUrl(
+    transaction.screenshot.key,
+    3600
+  );
+
+  const transactionWithUrl = {
+    ...transaction.toObject(),
+    screenshot: {
+      url,
+    },
+  };
+
+  sendSuccessResponse(res, 200, {
+    transaction: transactionWithUrl,
+    message: "Transaction fetched",
+  });
+});
+
+const updateTransactionStatus = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+  const { status } = req.body;
+  if (!["accepted", "rejected"].includes(status))
+    return next(new AppError("Invalid status", 400));
+
+  const transaction = await Transaction.findByIdAndUpdate(
+    id,
+    { status },
+    { new: true }
+  );
+  if (!transaction) return next(new AppError("Transaction not found", 400));
+
+  sendSuccessResponse(res, 200, {
+    message: `Transaction ${status}`,
+    transaction,
+  });
+});
+
+module.exports = {
+  createTransaction,
+  getAllTransactions,
+  getTransactionById,
+  updateTransactionStatus,
+};

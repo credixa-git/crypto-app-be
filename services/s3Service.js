@@ -36,12 +36,28 @@ class S3Service {
    * @param {string} side - Front or back of document
    * @returns {string} - Unique file key
    */
-  generateFileKey(originalName, userId, documentType, side) {
+  generateKycFileKey(originalName, userId, documentType, side) {
     const timestamp = Date.now();
     const randomString = crypto.randomBytes(8).toString("hex");
     const fileExtension = originalName.split(".").pop();
 
     return `kyc/${userId}/${documentType}/${side}_${timestamp}_${randomString}.${fileExtension}`;
+  }
+
+  /**
+   * Generate a unique file key for S3
+   * @param {string} originalName - Original filename
+   * @param {string} userId - User ID
+   * @param {string} documentType - Type of document
+   * @param {string} side - Front or back of document
+   * @returns {string} - Unique file key
+   */
+  generateFileKey(originalName, basePath, route) {
+    const timestamp = Date.now();
+    const randomString = crypto.randomBytes(8).toString("hex");
+    const fileExtension = originalName.split(".").pop();
+
+    return `${basePath}/${route}/${timestamp}_${randomString}.${fileExtension}`;
   }
 
   /**

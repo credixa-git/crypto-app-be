@@ -12,6 +12,11 @@ const {
 const schemaValidator = require("../middlewares/schema.validator");
 const adminProtection = require("../middlewares/admin.middleware");
 const { rejectKYCSchema } = require("../schemas/admin.schema");
+const {
+  updateTransactionStatus,
+  getAllTransactions,
+  getTransactionById,
+} = require("../controllers/transaction.controller");
 
 const router = express.Router();
 
@@ -29,5 +34,10 @@ router.patch("/kyc/:id/reject", schemaValidator(rejectKYCSchema), rejectKYC);
 router.get("/users", getAllUsers);
 router.get("/users/stats", getUserStats);
 router.get("/users/:id", getUserById);
+
+// Transaction Management Routes
+router.get("/transactions", getAllTransactions);
+router.get("/transactions/:id", getTransactionById);
+router.patch("/transactions/:id/status", updateTransactionStatus);
 
 module.exports = router;

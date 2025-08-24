@@ -7,7 +7,7 @@ const morgan = require("morgan");
 const mongoose = require("mongoose");
 const AppError = require("./utils/appError.js");
 
-console.log("Server initialization started...".yellow);
+console.info("Server initialization started...".yellow);
 
 const app = express();
 
@@ -18,7 +18,7 @@ const options = {
 // Add cross origin
 app.use(cors(options));
 
-// Development logging
+// Development infoging
 if (AppConfig.env !== "production") {
   app.use(morgan("dev"));
 }
@@ -35,6 +35,7 @@ app.use("/kyc", require("./routes/kyc.routes.js"));
 app.use("/admin", require("./routes/admin.routes.js"));
 app.use("/admin/wallets", require("./routes/adminWallet.routes.js"));
 app.use("/wallets", require("./routes/publicWallet.routes.js"));
+app.use("/transactions", require("./routes/transaction.routes.js"));
 
 app.use((req, _, next) => {
   next(new AppError(`Can't find ${req.originalUrl} on this server`, 404));
@@ -46,10 +47,10 @@ app.use(globalErrorHandler);
 // Server initialization
 async function initialize() {
   await mongoose.connect(AppConfig.database);
-  console.log("DB connection successful".green.bold);
+  console.info("DB connection successful".green.bold);
 
   app.listen(AppConfig.port, (err) => {
-    console.log(`Server listening on port ${AppConfig.port}`.blue.bold);
+    console.info(`Server listening on port ${AppConfig.port}`.blue.bold);
   });
 }
 
@@ -71,9 +72,9 @@ process.on("unhandledRejection", (err) => {
 
 // Handle SIGTERM
 process.on("SIGTERM", () => {
-  console.log("👋 SIGTERM RECEIVED. Shutting down gracefully".yellow);
+  console.error("👋 SIGTERM RECEIVED. Shutting down gracefully".yellow);
   server.close(() => {
-    console.log("💥 Process terminated!".red);
+    console.error("💥 Process terminated!".red);
   });
 });
 

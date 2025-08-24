@@ -91,7 +91,6 @@ userSchema.methods.changedPasswordAfter = async function (JWTTimestamp) {
       10 // base 10
     ); // change date object to timestamp (unix)
 
-    // console.log(changedTimeStamp, JWTTimestamp);
     return JWTTimestamp < changedTimeStamp;
   }
   // False means not changed
