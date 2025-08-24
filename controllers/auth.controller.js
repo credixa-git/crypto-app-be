@@ -480,12 +480,7 @@ const protect = catchAsync(async (req, res, next) => {
       );
     }
 
-    const activeMembershipPlan = await ActiveMembershipPlan.find({
-      userId: freshUser._id,
-      expiresOn: { $gt: Date.now() },
-    });
-
-    freshUser.activeMembershipPlan = activeMembershipPlan;
+    // GRANT ACCESS TO PROTECTED ROUTE
 
     // GRANT ACCESS TO PROTECTED ROUTE
     req.user = freshUser;

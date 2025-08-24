@@ -31,6 +31,8 @@ app.get("/", (_, res) => {
   res.json({ message: "Server started successfully", env: AppConfig.env });
 });
 app.use("/", require("./routes/auth.routes.js"));
+app.use("/kyc", require("./routes/kyc.routes.js"));
+app.use("/admin", require("./routes/admin.routes.js"));
 
 app.use((req, _, next) => {
   next(new AppError(`Can't find ${req.originalUrl} on this server`, 404));

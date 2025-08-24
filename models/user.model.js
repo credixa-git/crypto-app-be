@@ -46,6 +46,12 @@ const userSchema = mongoose.Schema(
       default: false,
     },
 
+    kycStatus: {
+      type: String,
+      enum: ["not applied", "applied", "verified", "rejected"],
+      default: "not applied",
+    },
+
     passwordChangedAt: Date,
     passwordResetToken: String,
     passwordResetExpires: Date,

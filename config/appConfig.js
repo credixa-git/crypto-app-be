@@ -24,6 +24,9 @@ const AppConfig = {
       fromEmail: process.env.AWS_SES_FROM_EMAIL ?? "noreply@yourdomain.com",
       fromName: process.env.AWS_SES_FROM_NAME ?? "Crypto Port",
     },
+    s3: {
+      bucketName: process.env.AWS_S3_BUCKET_NAME,
+    },
   },
 };
 
