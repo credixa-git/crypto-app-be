@@ -160,15 +160,10 @@ const login = catchAsync(async (req, res, next) => {
     try {
       await emailService.sendOTPEmail(user.email, otp, "login");
 
-      return sendSuccessResponse(
-        "Account not verified. OTP sent to your email for verification.",
-        res,
-        200,
-        {
-          message: "Please verify your account with OTP sent to your email",
-          requiresVerification: true,
-        }
-      );
+      return sendSuccessResponse(res, 200, {
+        message: "Please verify your account with OTP sent to your email",
+        requiresVerification: true,
+      });
     } catch (error) {
       return next(
         new AppError("Failed to send OTP email. Please try again.", 500)
@@ -183,15 +178,10 @@ const login = catchAsync(async (req, res, next) => {
   try {
     await emailService.sendOTPEmail(user.email, loginOTP, "login");
 
-    return sendSuccessResponse(
-      "Login OTP sent to your email for verification.",
-      res,
-      200,
-      {
-        message: "Please verify your login with OTP sent to your email",
-        requiresOTP: true,
-      }
-    );
+    return sendSuccessResponse(res, 200, {
+      message: "Please verify your login with OTP sent to your email",
+      requiresOTP: true,
+    });
   } catch (error) {
     return next(
       new AppError("Failed to send login OTP email. Please try again.", 500)
@@ -329,7 +319,7 @@ const resendOTP = catchAsync(async (req, res, next) => {
   try {
     await emailService.sendOTPEmail(user.email, otp, "verification");
 
-    return sendSuccessResponse("New OTP sent to your email", res, 200, {
+    return sendSuccessResponse(res, 200, {
       message: "OTP sent successfully",
     });
   } catch (error) {

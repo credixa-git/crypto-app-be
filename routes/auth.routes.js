@@ -14,7 +14,7 @@ const router = express.Router();
 router.post("/signup", schemaValidator(signupSchema), authController.signup);
 router.post("/login", schemaValidator(loginSchema), authController.login);
 router.post(
-  "/verify-otp",
+  "/verify-signup-otp",
   schemaValidator(otpSchema),
   authController.verifyOTP
 );
