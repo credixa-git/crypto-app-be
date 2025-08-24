@@ -5,6 +5,7 @@ const {
   submitKYC,
   getKYCStatus,
   resubmitKYC,
+  getKYCImages,
 } = require("../controllers/kyc.controller");
 const schemaValidator = require("../middlewares/schema.validator");
 const { submitKYCSchema, resubmitKYCSchema } = require("../schemas/kyc.schema");
@@ -43,6 +44,9 @@ router.post(
 
 // Get KYC status
 router.get("/status", getKYCStatus);
+
+// Get KYC images with presigned URLs
+router.get("/:id/images", getKYCImages);
 
 // Resubmit KYC documents (if rejected)
 router.post(

@@ -89,11 +89,9 @@ const submitKYC = catchAsync(async (req, res, next) => {
       userId,
       documentType,
       frontImage: {
-        url: frontUploadResult.url,
         key: frontUploadResult.key,
       },
       backImage: {
-        url: backUploadResult.url,
         key: backUploadResult.key,
       },
     };
@@ -157,14 +155,19 @@ const getKYCStatus = catchAsync(async (req, res, next) => {
     });
   }
 
+  // Generate presigned URLs for images (valid for 1 hour)
+  const kycWithUrls = await s3Service.generateKYCImageUrls(kyc, 3600);
+
   const responseData = {
     kyc: {
-      id: kyc._id,
-      documentType: kyc.documentType,
-      status: kyc.status,
-      submittedAt: kyc.submittedAt,
-      reviewedAt: kyc.reviewedAt,
-      rejectionReason: kyc.rejectionReason,
+      id: kycWithUrls._id,
+      documentType: kycWithUrls.documentType,
+      status: kycWithUrls.status,
+      submittedAt: kycWithUrls.submittedAt,
+      reviewedAt: kycWithUrls.reviewedAt,
+      rejectionReason: kycWithUrls.rejectionReason,
+      frontImage: kycWithUrls.frontImage,
+      backImage: kycWithUrls.backImage,
     },
     kycStatus: user.kycStatus,
   };
@@ -262,11 +265,9 @@ const resubmitKYC = catchAsync(async (req, res, next) => {
     // Update KYC record
     existingKYC.documentType = documentType;
     existingKYC.frontImage = {
-      url: frontUploadResult.url,
       key: frontUploadResult.key,
     };
     existingKYC.backImage = {
-      url: backUploadResult.url,
       key: backUploadResult.key,
     };
     existingKYC.status = "applied";
@@ -299,8 +300,39 @@ const resubmitKYC = catchAsync(async (req, res, next) => {
   }
 });
 
+/**
+ * Get KYC images with presigned URLs for frontend display
+ * @route GET /api/kyc/:id/images
+ * @access Private
+ */
+const getKYCImages = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+  const userId = req.user._id;
+
+  const kyc = await KYC.findOne({ _id: id, userId });
+  if (!kyc) {
+    return next(new AppError("KYC submission not found", 404));
+  }
+
+  // Generate presigned URLs for images (valid for 1 hour)
+  const kycWithUrls = await s3Service.generateKYCImageUrls(kyc, 3600);
+
+  const responseData = {
+    kyc: {
+      id: kycWithUrls._id,
+      documentType: kycWithUrls.documentType,
+      status: kycWithUrls.status,
+      frontImage: kycWithUrls.frontImage,
+      backImage: kycWithUrls.backImage,
+    },
+  };
+
+  return sendSuccessResponse(res, 200, responseData);
+});
+
 module.exports = {
   submitKYC,
   getKYCStatus,
   resubmitKYC,
+  getKYCImages,
 };

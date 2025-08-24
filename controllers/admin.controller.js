@@ -3,6 +3,7 @@ const AppError = require("../utils/appError");
 const { sendSuccessResponse } = require("../utils/apiResponse");
 const KYC = require("../models/kyc.model");
 const User = require("../models/user.model");
+const s3Service = require("../services/s3Service");
 
 /**
  * Get all KYC submissions with pagination and filtering
@@ -30,10 +31,17 @@ const getAllKYCSubmissions = catchAsync(async (req, res, next) => {
     KYC.countDocuments(filter),
   ]);
 
+  // Generate presigned URLs for all images (valid for 1 hour)
+  const kycSubmissionsWithUrls = await Promise.all(
+    kycSubmissions.map(async (kyc) => {
+      return await s3Service.generateKYCImageUrls(kyc, 3600);
+    })
+  );
+
   const totalPages = Math.ceil(total / limit);
 
   const responseData = {
-    kycSubmissions,
+    kycSubmissions: kycSubmissionsWithUrls,
     pagination: {
       currentPage: page,
       totalPages,
@@ -59,7 +67,10 @@ const getKYCSubmissionById = catchAsync(async (req, res, next) => {
     return next(new AppError("KYC submission not found", 404));
   }
 
-  return sendSuccessResponse(res, 200, { kyc });
+  // Generate presigned URLs for images (valid for 1 hour)
+  const kycWithUrls = await s3Service.generateKYCImageUrls(kyc, 3600);
+
+  return sendSuccessResponse(res, 200, { kyc: kycWithUrls });
 });
 
 /**

@@ -49,7 +49,7 @@ class S3Service {
    * @param {Buffer} fileBuffer - File buffer
    * @param {string} fileKey - S3 file key
    * @param {string} contentType - File content type
-   * @returns {Promise<Object>} - Upload result with URL and key
+   * @returns {Promise<Object>} - Upload result with key
    */
   async uploadFile(fileBuffer, fileKey, contentType) {
     try {
@@ -64,11 +64,7 @@ class S3Service {
       const command = new PutObjectCommand(uploadParams);
       await this.s3Client.send(command);
 
-      // Generate the S3 URL
-      const fileUrl = `https://${this.bucketName}.s3.${AppConfig.aws.region}.amazonaws.com/${fileKey}`;
-
       return {
-        url: fileUrl,
         key: fileKey,
         success: true,
       };
@@ -101,7 +97,7 @@ class S3Service {
   }
 
   /**
-   * Generate presigned URL for file access (if needed for admin review)
+   * Generate presigned URL for file access
    * @param {string} fileKey - S3 file key
    * @param {number} expiresIn - Expiration time in seconds (default: 1 hour)
    * @returns {Promise<string>} - Presigned URL
@@ -121,6 +117,62 @@ class S3Service {
     } catch (error) {
       console.error("S3 presigned URL generation error:", error);
       throw new Error(`Failed to generate presigned URL: ${error.message}`);
+    }
+  }
+
+  /**
+   * Generate presigned URLs for multiple files
+   * @param {Array<string>} fileKeys - Array of S3 file keys
+   * @param {number} expiresIn - Expiration time in seconds (default: 1 hour)
+   * @returns {Promise<Array<{key: string, url: string}>>} - Array of presigned URLs
+   */
+  async generatePresignedUrls(fileKeys, expiresIn = 3600) {
+    try {
+      const presignedUrls = await Promise.all(
+        fileKeys.map(async (key) => {
+          const url = await this.generatePresignedUrl(key, expiresIn);
+          return { key, url };
+        })
+      );
+
+      return presignedUrls;
+    } catch (error) {
+      console.error("S3 presigned URLs generation error:", error);
+      throw new Error(`Failed to generate presigned URLs: ${error.message}`);
+    }
+  }
+
+  /**
+   * Generate presigned URLs for KYC images
+   * @param {Object} kyc - KYC object with frontImage and backImage keys
+   * @param {number} expiresIn - Expiration time in seconds (default: 1 hour)
+   * @returns {Promise<Object>} - KYC object with presigned URLs
+   */
+  async generateKYCImageUrls(kyc, expiresIn = 3600) {
+    try {
+      if (!kyc.frontImage?.key || !kyc.backImage?.key) {
+        throw new Error("KYC object must have frontImage and backImage keys");
+      }
+
+      const [frontImageUrl, backImageUrl] = await Promise.all([
+        this.generatePresignedUrl(kyc.frontImage.key, expiresIn),
+        this.generatePresignedUrl(kyc.backImage.key, expiresIn),
+      ]);
+
+      return {
+        ...(kyc.toObject ? kyc.toObject() : kyc),
+        frontImage: {
+          ...kyc.frontImage,
+          url: frontImageUrl,
+        },
+        backImage: {
+          ...kyc.backImage,
+          url: backImageUrl,
+        },
+      };
+    } catch (error) {
+      console.error("KYC image URLs generation error:", error);
+      throw new Error(`Failed to generate KYC image URLs: ${error.message}`);
     }
   }
 
