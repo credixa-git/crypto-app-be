@@ -16,10 +16,6 @@ const kycSchema = mongoose.Schema(
     },
 
     frontImage: {
-      url: {
-        type: String,
-        required: true,
-      },
       key: {
         type: String,
         required: true,
@@ -27,10 +23,6 @@ const kycSchema = mongoose.Schema(
     },
 
     backImage: {
-      url: {
-        type: String,
-        required: true,
-      },
       key: {
         type: String,
         required: true,

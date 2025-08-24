@@ -5,6 +5,9 @@ const {
   approveKYC,
   rejectKYC,
   getKYCStats,
+  getAllUsers,
+  getUserById,
+  getUserStats,
 } = require("../controllers/admin.controller");
 const schemaValidator = require("../middlewares/schema.validator");
 const adminProtection = require("../middlewares/admin.middleware");
@@ -21,5 +24,10 @@ router.get("/kyc/stats", getKYCStats);
 router.get("/kyc/:id", getKYCSubmissionById);
 router.patch("/kyc/:id/approve", approveKYC);
 router.patch("/kyc/:id/reject", schemaValidator(rejectKYCSchema), rejectKYC);
+
+// User Management Routes
+router.get("/users", getAllUsers);
+router.get("/users/stats", getUserStats);
+router.get("/users/:id", getUserById);
 
 module.exports = router;

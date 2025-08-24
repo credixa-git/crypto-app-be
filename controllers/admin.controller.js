@@ -154,6 +154,154 @@ const rejectKYC = catchAsync(async (req, res, next) => {
 });
 
 /**
+ * Get all users with pagination and filtering
+ * @route GET /api/admin/users
+ * @access Private (Admin only)
+ */
+const getAllUsers = catchAsync(async (req, res, next) => {
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const search = req.query.search; // Search by name or email
+  const kycStatus = req.query.kycStatus;
+  const isVerified = req.query.isVerified;
+
+  const filter = {};
+
+  // Add search filter
+  if (search) {
+    filter.$or = [
+      { name: { $regex: search, $options: "i" } },
+      { email: { $regex: search, $options: "i" } },
+    ];
+  }
+
+  // Add KYC status filter
+  if (kycStatus) {
+    filter.kycStatus = kycStatus;
+  }
+
+  // Add verification status filter
+  if (isVerified !== undefined) {
+    filter.isVerified = isVerified === "true";
+  }
+
+  const skip = (page - 1) * limit;
+
+  const [users, total] = await Promise.all([
+    User.find(filter)
+      .select(
+        "-password -verificationOTP -verificationOTPExpiresAt -passwordResetOTP -passwordResetOTPExpiresAt"
+      )
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit),
+    User.countDocuments(filter),
+  ]);
+
+  // Get KYC status for each user
+  const usersWithKYC = await Promise.all(
+    users.map(async (user) => {
+      const kyc = await KYC.findOne({ userId: user._id }).select(
+        "status documentType submittedAt"
+      );
+      return {
+        ...user.toObject(),
+        kyc: kyc || null,
+      };
+    })
+  );
+
+  const totalPages = Math.ceil(total / limit);
+
+  const responseData = {
+    users: usersWithKYC,
+    pagination: {
+      currentPage: page,
+      totalPages,
+      totalItems: total,
+      itemsPerPage: limit,
+    },
+  };
+
+  return sendSuccessResponse(res, 200, responseData);
+});
+
+/**
+ * Get user by ID with detailed information
+ * @route GET /api/admin/users/:id
+ * @access Private (Admin only)
+ */
+const getUserById = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+
+  const user = await User.findById(id).select(
+    "-password -verificationOTP -verificationOTPExpiresAt -passwordResetOTP -passwordResetOTPExpiresAt"
+  );
+
+  if (!user) {
+    return next(new AppError("User not found", 404));
+  }
+
+  // Get KYC information
+  const kyc = await KYC.findOne({ userId: user._id });
+
+  // Get KYC images with presigned URLs if KYC exists
+  let kycWithImages = null;
+  if (kyc) {
+    kycWithImages = await s3Service.generateKYCImageUrls(kyc, 3600);
+  }
+
+  const userData = {
+    ...user.toObject(),
+    kyc: kycWithImages,
+  };
+
+  return sendSuccessResponse(res, 200, { user: userData });
+});
+
+/**
+ * Get user statistics
+ * @route GET /api/admin/users/stats
+ * @access Private (Admin only)
+ */
+const getUserStats = catchAsync(async (req, res, next) => {
+  const [totalUsers, verifiedUsers, unverifiedUsers] = await Promise.all([
+    User.countDocuments(),
+    User.countDocuments({ isVerified: true }),
+    User.countDocuments({ isVerified: false }),
+  ]);
+
+  const kycStatusStats = await User.aggregate([
+    {
+      $group: {
+        _id: "$kycStatus",
+        count: { $sum: 1 },
+      },
+    },
+  ]);
+
+  // Convert to object format for easier access
+  const kycStatusCounts = {};
+  kycStatusStats.forEach((stat) => {
+    kycStatusCounts[stat._id] = stat.count;
+  });
+
+  const responseData = {
+    totalUsers,
+    verifiedUsers,
+    unverifiedUsers,
+    kycStatusCounts: {
+      "not applied": kycStatusCounts["not applied"] || 0,
+      applied: kycStatusCounts["applied"] || 0,
+      verified: kycStatusCounts["verified"] || 0,
+      rejected: kycStatusCounts["rejected"] || 0,
+    },
+  };
+
+  return sendSuccessResponse(res, 200, responseData);
+});
+
+/**
  * Get KYC statistics
  * @route GET /api/admin/kyc/stats
  * @access Private (Admin only)
@@ -201,4 +349,7 @@ module.exports = {
   approveKYC,
   rejectKYC,
   getKYCStats,
+  getAllUsers,
+  getUserById,
+  getUserStats,
 };

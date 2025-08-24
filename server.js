@@ -33,6 +33,8 @@ app.get("/", (_, res) => {
 app.use("/", require("./routes/auth.routes.js"));
 app.use("/kyc", require("./routes/kyc.routes.js"));
 app.use("/admin", require("./routes/admin.routes.js"));
+app.use("/admin/wallets", require("./routes/adminWallet.routes.js"));
+app.use("/wallets", require("./routes/publicWallet.routes.js"));
 
 app.use((req, _, next) => {
   next(new AppError(`Can't find ${req.originalUrl} on this server`, 404));
