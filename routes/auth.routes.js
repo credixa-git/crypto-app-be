@@ -6,6 +6,7 @@ const {
   loginSchema,
   otpSchema,
   resetPasswordSchema,
+  forgotPasswordSchema,
 } = require("../schemas/auth.schema");
 
 const router = express.Router();
@@ -30,7 +31,7 @@ router.post(
 );
 router.post(
   "/forgot-password",
-  schemaValidator(otpSchema),
+  schemaValidator(forgotPasswordSchema),
   authController.forgotPassword
 );
 router.post(

@@ -43,6 +43,14 @@ const loginSchema = Joi.object({
     "object.base": "Request body must be a valid JSON object",
   });
 
+const forgotPasswordSchema = Joi.object({
+  email: Joi.string().email().required().messages({
+    "string.email": "Please provide a valid email address",
+    "any.required": "Email is required",
+    "string.empty": "Email cannot be empty",
+  }),
+});
+
 const otpSchema = Joi.object({
   email: Joi.string().email().required().messages({
     "string.email": "Please provide a valid email address",
@@ -114,6 +122,7 @@ module.exports = {
   signupSchema,
   loginSchema,
   otpSchema,
+  forgotPasswordSchema,
   resendOTPSchema,
   resetPasswordSchema,
 };
