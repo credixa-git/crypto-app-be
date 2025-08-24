@@ -27,9 +27,6 @@ const getActiveWallets = catchAsync(async (req, res, next) => {
   }
 
   const wallets = await Wallet.find(filter)
-    .select(
-      "walletAddress chain token description networkFee minimumAmount maximumAmount priority tags"
-    )
     .sort({ priority: -1, createdAt: -1 })
     .limit(limit);
 
@@ -71,9 +68,7 @@ const getActiveWallets = catchAsync(async (req, res, next) => {
 const getWalletById = catchAsync(async (req, res, next) => {
   const { id } = req.params;
 
-  const wallet = await Wallet.findById(id).select(
-    "walletAddress chain token description networkFee minimumAmount maximumAmount priority tags isActive"
-  );
+  const wallet = await Wallet.findById(id);
 
   if (!wallet) {
     return next(new AppError("Wallet not found", 404));
@@ -89,7 +84,7 @@ const getWalletById = catchAsync(async (req, res, next) => {
       wallet.qrImage.key,
       3600
     );
-    wallet.qrImage = { url: qrUrl };
+    wallet.toObject().qrImage = { url: qrUrl };
   } catch (error) {
     console.error(`Failed to generate QR URL for wallet ${wallet._id}:`, error);
     wallet.qrImage = { url: null };
@@ -196,9 +191,6 @@ const searchWallets = catchAsync(async (req, res, next) => {
   }
 
   const wallets = await Wallet.find(filter)
-    .select(
-      "walletAddress chain token description networkFee minimumAmount maximumAmount priority tags"
-    )
     .sort({ priority: -1, createdAt: -1 })
     .limit(limit);
 

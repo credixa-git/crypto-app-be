@@ -116,8 +116,7 @@ walletSchema.methods.deactivate = function (updatedBy) {
 };
 
 // Method to update QR image
-walletSchema.methods.updateQR = function (qrUrl, qrKey, updatedBy) {
-  this.qrImage.url = qrUrl;
+walletSchema.methods.updateQR = function (qrKey, updatedBy) {
   this.qrImage.key = qrKey;
   this.updatedBy = updatedBy;
 };
