@@ -78,17 +78,32 @@ class EmailService {
    * @returns {string} - HTML email body
    */
   generateOTPEmailHTML(otp, purpose) {
+    // Customize styling based on purpose
+    let headerColor = "#2c3e50"; // Default color
+    let title = "OTP Verification";
+
+    if (purpose === "password reset") {
+      headerColor = "#e74c3c"; // Red for password reset
+      title = "Password Reset OTP";
+    } else if (purpose === "signup") {
+      headerColor = "#27ae60"; // Green for signup
+      title = "Account Verification OTP";
+    } else if (purpose === "login") {
+      headerColor = "#3498db"; // Blue for login
+      title = "Login Verification OTP";
+    }
+
     return `
       <!DOCTYPE html>
       <html>
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>OTP Verification</title>
+        <title>${title}</title>
         <style>
           body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
           .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: #2c3e50; color: white; padding: 20px; text-align: center; }
+          .header { background: ${headerColor}; color: white; padding: 20px; text-align: center; }
           .content { padding: 30px; background: #f8f9fa; }
           .otp-box { background: #e74c3c; color: white; padding: 20px; text-align: center; font-size: 32px; font-weight: bold; margin: 20px 0; border-radius: 8px; }
           .footer { text-align: center; padding: 20px; color: #7f8c8d; font-size: 14px; }
@@ -100,7 +115,7 @@ class EmailService {
             <h1>Crypto Port</h1>
           </div>
           <div class="content">
-            <h2>OTP Verification</h2>
+            <h2>${title}</h2>
             <p>Hello!</p>
             <p>Your OTP for ${purpose} is:</p>
             <div class="otp-box">${otp}</div>
@@ -130,8 +145,19 @@ class EmailService {
    * @returns {string} - Plain text email body
    */
   generateOTPEmailText(otp, purpose) {
+    // Customize title based on purpose
+    let title = "OTP Verification - Crypto Port";
+
+    if (purpose === "password reset") {
+      title = "Password Reset OTP - Crypto Port";
+    } else if (purpose === "signup") {
+      title = "Account Verification OTP - Crypto Port";
+    } else if (purpose === "login") {
+      title = "Login Verification OTP - Crypto Port";
+    }
+
     return `
-OTP Verification - Crypto Port
+${title}
 
 Hello!
 

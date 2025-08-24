@@ -21,15 +21,26 @@ const userSchema = mongoose.Schema(
       select: false,
     },
 
-    // OTP verification fields
-    otp: {
+    // Account verification OTP fields
+    verificationOTP: {
       type: String,
       select: false,
     },
-    otpExpiresAt: {
+    verificationOTPExpiresAt: {
       type: Date,
       select: false,
     },
+
+    // Password reset OTP fields
+    passwordResetOTP: {
+      type: String,
+      select: false,
+    },
+    passwordResetOTPExpiresAt: {
+      type: Date,
+      select: false,
+    },
+
     isVerified: {
       type: Boolean,
       default: false,
@@ -95,17 +106,17 @@ userSchema.methods.createPasswordResetToken = async function () {
 };
 
 /**
- * Generate and store OTP for user verification
+ * Generate and store OTP for account verification
  * @returns {string} - Generated OTP
  */
-userSchema.methods.generateOTP = function () {
+userSchema.methods.generateVerificationOTP = function () {
   const AppConfig = require("../config/appConfig");
 
   // Generate 6-digit OTP
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
   // Store OTP and set expiry (default to 15 minutes if not configured)
-  this.otp = otp;
+  this.verificationOTP = otp;
   let expiryMinutes = AppConfig.otp.expiry || 15; // fallback to 15 minutes
 
   // Ensure expiryMinutes is a valid number and create the expiry date
@@ -113,11 +124,44 @@ userSchema.methods.generateOTP = function () {
     expiryMinutes = 15; // fallback to 15 minutes if invalid
   }
 
-  this.otpExpiresAt = new Date(Date.now() + expiryMinutes * 60 * 1000);
+  this.verificationOTPExpiresAt = new Date(
+    Date.now() + expiryMinutes * 60 * 1000
+  );
 
   // Validate that the date was created successfully
-  if (isNaN(this.otpExpiresAt.getTime())) {
-    throw new Error("Failed to create valid OTP expiry date");
+  if (isNaN(this.verificationOTPExpiresAt.getTime())) {
+    throw new Error("Failed to create valid verification OTP expiry date");
+  }
+
+  return otp;
+};
+
+/**
+ * Generate and store OTP for password reset
+ * @returns {string} - Generated OTP
+ */
+userSchema.methods.generatePasswordResetOTP = function () {
+  const AppConfig = require("../config/appConfig");
+
+  // Generate 6-digit OTP
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+  // Store OTP and set expiry (default to 15 minutes if not configured)
+  this.passwordResetOTP = otp;
+  let expiryMinutes = AppConfig.otp.expiry || 15; // fallback to 15 minutes
+
+  // Ensure expiryMinutes is a valid number and create the expiry date
+  if (isNaN(expiryMinutes) || expiryMinutes <= 0) {
+    expiryMinutes = 15; // fallback to 15 minutes if invalid
+  }
+
+  this.passwordResetOTPExpiresAt = new Date(
+    Date.now() + expiryMinutes * 60 * 1000
+  );
+
+  // Validate that the date was created successfully
+  if (isNaN(this.passwordResetOTPExpiresAt.getTime())) {
+    throw new Error("Failed to create valid password reset OTP expiry date");
   }
 
   return otp;
@@ -130,29 +174,65 @@ userSchema.methods.generateOTP = function () {
  */
 userSchema.methods.verifyOTP = function (providedOTP) {
   // Check if OTP exists and matches
-  if (!this.otp || this.otp !== providedOTP) {
+  if (!this.verificationOTP || this.verificationOTP !== providedOTP) {
     return false;
   }
 
   // Check if OTP is expired
-  if (this.otpExpiresAt < new Date()) {
+  if (this.verificationOTPExpiresAt < new Date()) {
     return false;
   }
 
   // Clear OTP after successful verification
-  this.otp = undefined;
-  this.otpExpiresAt = undefined;
+  this.verificationOTP = undefined;
+  this.verificationOTPExpiresAt = undefined;
   this.isVerified = true;
 
   return true;
 };
 
 /**
- * Check if OTP is expired
+ * Verify OTP for password reset (doesn't change verification status)
+ * @param {string} providedOTP - OTP provided by user
+ * @returns {boolean} - True if OTP is valid and not expired
+ */
+userSchema.methods.verifyPasswordResetOTP = function (providedOTP) {
+  // Check if OTP exists and matches
+  if (!this.passwordResetOTP || this.passwordResetOTP !== providedOTP) {
+    return false;
+  }
+
+  // Check if OTP is expired
+  if (this.passwordResetOTPExpiresAt < new Date()) {
+    return false;
+  }
+
+  // Clear OTP after successful verification (but don't change isVerified)
+  this.passwordResetOTP = undefined;
+  this.passwordResetOTPExpiresAt = undefined;
+
+  return true;
+};
+
+/**
+ * Check if verification OTP is expired
  * @returns {boolean} - True if OTP is expired
  */
-userSchema.methods.isOTPExpired = function () {
-  return this.otpExpiresAt && this.otpExpiresAt < new Date();
+userSchema.methods.isVerificationOTPExpired = function () {
+  return (
+    this.verificationOTPExpiresAt && this.verificationOTPExpiresAt < new Date()
+  );
+};
+
+/**
+ * Check if password reset OTP is expired
+ * @returns {boolean} - True if OTP is expired
+ */
+userSchema.methods.isPasswordResetOTPExpired = function () {
+  return (
+    this.passwordResetOTPExpiresAt &&
+    this.passwordResetOTPExpiresAt < new Date()
+  );
 };
 
 const User = mongoose.model("User", userSchema);

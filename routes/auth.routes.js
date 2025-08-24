@@ -5,6 +5,7 @@ const {
   signupSchema,
   loginSchema,
   otpSchema,
+  resetPasswordSchema,
 } = require("../schemas/auth.schema");
 
 const router = express.Router();
@@ -18,9 +19,24 @@ router.post(
   authController.verifyOTP
 );
 router.post(
+  "/verify-login-otp",
+  schemaValidator(otpSchema),
+  authController.verifyLoginOTP
+);
+router.post(
   "/resend-otp",
   schemaValidator(otpSchema),
   authController.resendOTP
+);
+router.post(
+  "/forgot-password",
+  schemaValidator(otpSchema),
+  authController.forgotPassword
+);
+router.post(
+  "/reset-password",
+  schemaValidator(resetPasswordSchema),
+  authController.resetPassword
 );
 
 // Protected routes

@@ -105,7 +105,7 @@ const signup = catchAsync(async (req, res, next) => {
   });
 
   // Generate OTP and send email
-  const otp = newUser.generateOTP();
+  const otp = newUser.generateVerificationOTP();
   await newUser.save();
 
   try {
@@ -113,8 +113,8 @@ const signup = catchAsync(async (req, res, next) => {
 
     // Remove sensitive data from response
     newUser.password = undefined;
-    newUser.otp = undefined;
-    newUser.otpExpiresAt = undefined;
+    newUser.verificationOTP = undefined;
+    newUser.verificationOTPExpiresAt = undefined;
 
     return sendSuccessResponse(res, 201, {
       user: newUser,
@@ -154,7 +154,7 @@ const login = catchAsync(async (req, res, next) => {
   // 3) Check if user is verified
   if (!user.isVerified) {
     // Generate new OTP and send email
-    const otp = user.generateOTP();
+    const otp = user.generateVerificationOTP();
     await user.save();
 
     try {
@@ -176,8 +176,70 @@ const login = catchAsync(async (req, res, next) => {
     }
   }
 
+  // 4) Generate login OTP for additional security
+  const loginOTP = user.generateVerificationOTP();
+  await user.save();
+
+  try {
+    await emailService.sendOTPEmail(user.email, loginOTP, "login");
+
+    return sendSuccessResponse(
+      "Login OTP sent to your email for verification.",
+      res,
+      200,
+      {
+        message: "Please verify your login with OTP sent to your email",
+        requiresOTP: true,
+      }
+    );
+  } catch (error) {
+    return next(
+      new AppError("Failed to send login OTP email. Please try again.", 500)
+    );
+  }
+
   // 4) if everything ok and user is verified, send token to client
   createAndSendToken(user, 200, res);
+});
+
+const verifyLoginOTP = catchAsync(async (req, res, next) => {
+  const { email, otp } = req.body;
+
+  if (!email || !otp) {
+    return next(new AppError("Please provide email and OTP", 400));
+  }
+
+  // Find user with OTP fields selected
+  const user = await User.findOne({ email }).select(
+    "+verificationOTP +verificationOTPExpiresAt"
+  );
+
+  if (!user) {
+    return next(new AppError("User not found", 404));
+  }
+
+  // Check if OTP is expired
+  if (user.isVerificationOTPExpired()) {
+    return next(
+      new AppError("OTP has expired. Please request a new one.", 400)
+    );
+  }
+
+  // Verify OTP
+  if (!user.verifyOTP(otp)) {
+    return next(new AppError("Invalid OTP", 400));
+  }
+
+  // Save user with cleared OTP
+  await user.save();
+
+  // Remove sensitive data
+  user.password = undefined;
+  user.verificationOTP = undefined;
+  user.verificationOTPExpiresAt = undefined;
+
+  // Send token to client
+  return createAndSendToken(user, 200, res);
 });
 
 const verifyOTP = catchAsync(async (req, res, next) => {
@@ -188,14 +250,16 @@ const verifyOTP = catchAsync(async (req, res, next) => {
   }
 
   // Find user with OTP fields selected
-  const user = await User.findOne({ email }).select("+otp +otpExpiresAt");
+  const user = await User.findOne({ email }).select(
+    "+verificationOTP +verificationOTPExpiresAt"
+  );
 
   if (!user) {
     return next(new AppError("User not found", 404));
   }
 
   // Check if OTP is expired
-  if (user.isOTPExpired()) {
+  if (user.isVerificationOTPExpired()) {
     return next(
       new AppError("OTP has expired. Please request a new one.", 400)
     );
@@ -221,8 +285,8 @@ const verifyOTP = catchAsync(async (req, res, next) => {
 
   // Remove sensitive data
   user.password = undefined;
-  user.otp = undefined;
-  user.otpExpiresAt = undefined;
+  user.verificationOTP = undefined;
+  user.verificationOTPExpiresAt = undefined;
 
   // Use createAndSendToken with unlimited expiry and success message
   return createAndSendToken(
@@ -242,19 +306,24 @@ const resendOTP = catchAsync(async (req, res, next) => {
     return next(new AppError("Please provide email", 400));
   }
 
-  const user = await User.findOne({ email }).select("+otp +otpExpiresAt");
+  const user = await User.findOne({ email }).select(
+    "+verificationOTP +verificationOTPExpiresAt"
+  );
 
   if (!user) {
     return next(new AppError("User not found", 404));
   }
 
   // Check if previous OTP is still valid (within 1 minute)
-  if (user.otpExpiresAt && user.otpExpiresAt > new Date(Date.now() - 60000)) {
+  if (
+    user.verificationOTPExpiresAt &&
+    user.verificationOTPExpiresAt > new Date(Date.now() - 60000)
+  ) {
     return next(new AppError("Please wait before requesting a new OTP", 429));
   }
 
   // Generate new OTP
-  const otp = user.generateOTP();
+  const otp = user.generateVerificationOTP();
   await user.save();
 
   try {
@@ -268,6 +337,102 @@ const resendOTP = catchAsync(async (req, res, next) => {
       new AppError("Failed to send OTP email. Please try again.", 500)
     );
   }
+});
+
+const forgotPassword = catchAsync(async (req, res, next) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return next(new AppError("Please provide email", 400));
+  }
+
+  // Find user by email
+  const user = await User.findOne({ email });
+  if (!user) {
+    return next(new AppError("User not found", 404));
+  }
+
+  // Check if previous password reset OTP is still valid (within 1 minute)
+  if (
+    user.passwordResetOTPExpiresAt &&
+    user.passwordResetOTPExpiresAt > new Date(Date.now() - 60000)
+  ) {
+    return next(new AppError("Please wait before requesting a new OTP", 429));
+  }
+
+  // Generate new OTP for password reset
+  const otp = user.generatePasswordResetOTP();
+  await user.save();
+
+  try {
+    await emailService.sendOTPEmail(user.email, otp, "password reset");
+
+    return sendSuccessResponse(res, 200, {
+      message: "OTP sent to your email for password reset",
+    });
+  } catch (error) {
+    return next(
+      new AppError("Failed to send OTP email. Please try again.", 500)
+    );
+  }
+});
+
+const resetPassword = catchAsync(async (req, res, next) => {
+  const { email, otp, newPassword } = req.body;
+
+  if (!email || !otp || !newPassword) {
+    return next(
+      new AppError("Please provide email, OTP, and new password", 400)
+    );
+  }
+
+  // Validate new password
+  if (newPassword.length < 6) {
+    return next(
+      new AppError("Password must be at least 6 characters long", 400)
+    );
+  }
+
+  // Find user with OTP fields selected
+  const user = await User.findOne({ email }).select(
+    "+passwordResetOTP +passwordResetOTPExpiresAt"
+  );
+
+  if (!user) {
+    return next(new AppError("User not found", 404));
+  }
+
+  // Check if OTP is expired
+  if (user.isPasswordResetOTPExpired()) {
+    return next(
+      new AppError("OTP has expired. Please request a new one.", 400)
+    );
+  }
+
+  // Verify OTP for password reset
+  if (!user.verifyPasswordResetOTP(otp)) {
+    return next(new AppError("Invalid OTP", 400));
+  }
+
+  // Update password
+  user.password = newPassword;
+  user.passwordChangedAt = Date.now();
+
+  // Clear OTP fields
+  user.passwordResetOTP = undefined;
+  user.passwordResetOTPExpiresAt = undefined;
+
+  // Save user with new password
+  await user.save();
+
+  // Remove sensitive data
+  user.password = undefined;
+  user.passwordResetOTP = undefined;
+  user.passwordResetOTPExpiresAt = undefined;
+
+  return sendSuccessResponse(res, 200, {
+    message: "Password reset successfully",
+  });
 });
 
 const protect = catchAsync(async (req, res, next) => {
@@ -344,6 +509,9 @@ module.exports = {
   signup,
   login,
   verifyOTP,
+  verifyLoginOTP,
   resendOTP,
+  forgotPassword,
+  resetPassword,
   protect,
 };
