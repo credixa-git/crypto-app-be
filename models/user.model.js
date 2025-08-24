@@ -21,6 +21,20 @@ const userSchema = mongoose.Schema(
       select: false,
     },
 
+    // OTP verification fields
+    otp: {
+      type: String,
+      select: false,
+    },
+    otpExpiresAt: {
+      type: Date,
+      select: false,
+    },
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
+
     passwordChangedAt: Date,
     passwordResetToken: String,
     passwordResetExpires: Date,
@@ -33,10 +47,8 @@ userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
 
   // Hash the password with a cost of 12
-  this.password = bcrypt.hash(this.password, 12);
+  this.password = await bcrypt.hash(this.password, 12);
 
-  // Delete the confirm password
-  this.passwordConfirm = undefined;
   next();
 });
 
@@ -80,6 +92,67 @@ userSchema.methods.createPasswordResetToken = async function () {
   this.passwordResetExpires = Date.now() + 10 * 60 * 1000; // adding miliseconds to date object
 
   return resetToken; // to send token into email and encrypted version to database and so becomes useless to change password and hence secured
+};
+
+/**
+ * Generate and store OTP for user verification
+ * @returns {string} - Generated OTP
+ */
+userSchema.methods.generateOTP = function () {
+  const AppConfig = require("../config/appConfig");
+
+  // Generate 6-digit OTP
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+  // Store OTP and set expiry (default to 15 minutes if not configured)
+  this.otp = otp;
+  let expiryMinutes = AppConfig.otp.expiry || 15; // fallback to 15 minutes
+
+  // Ensure expiryMinutes is a valid number and create the expiry date
+  if (isNaN(expiryMinutes) || expiryMinutes <= 0) {
+    expiryMinutes = 15; // fallback to 15 minutes if invalid
+  }
+
+  this.otpExpiresAt = new Date(Date.now() + expiryMinutes * 60 * 1000);
+
+  // Validate that the date was created successfully
+  if (isNaN(this.otpExpiresAt.getTime())) {
+    throw new Error("Failed to create valid OTP expiry date");
+  }
+
+  return otp;
+};
+
+/**
+ * Verify OTP provided by user
+ * @param {string} providedOTP - OTP provided by user
+ * @returns {boolean} - True if OTP is valid and not expired
+ */
+userSchema.methods.verifyOTP = function (providedOTP) {
+  // Check if OTP exists and matches
+  if (!this.otp || this.otp !== providedOTP) {
+    return false;
+  }
+
+  // Check if OTP is expired
+  if (this.otpExpiresAt < new Date()) {
+    return false;
+  }
+
+  // Clear OTP after successful verification
+  this.otp = undefined;
+  this.otpExpiresAt = undefined;
+  this.isVerified = true;
+
+  return true;
+};
+
+/**
+ * Check if OTP is expired
+ * @returns {boolean} - True if OTP is expired
+ */
+userSchema.methods.isOTPExpired = function () {
+  return this.otpExpiresAt && this.otpExpiresAt < new Date();
 };
 
 const User = mongoose.model("User", userSchema);

@@ -4,24 +4,68 @@ const { promisify } = require("util");
 const AppConfig = require("../config/appConfig");
 const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/appError");
-
+const emailService = require("../services/emailService");
 const User = require("../models/user.model");
+const { sendSuccessResponse } = require("../utils/apiResponse");
 
+/**
+ * Generate JWT token with configured expiry time
+ * @param {string} id - User ID
+ * @returns {string} - JWT token
+ */
 const signToken = (id) => {
   return jwt.sign({ id }, AppConfig.jwt.secret, {
     expiresIn: AppConfig.jwt.expiry,
   });
 };
 
-const createAndSendToken = (user, statusCode, res, redirect = false) => {
-  const token = signToken(user._id);
+/**
+ * Generate JWT token with unlimited expiry (never expires)
+ * @param {string} id - User ID
+ * @returns {string} - JWT token
+ */
+const signUnlimitedToken = (id) => {
+  return jwt.sign({ id }, AppConfig.jwt.secret, {
+    // No expiresIn means the token never expires
+  });
+};
+
+/**
+ * Create and send JWT token to client with optional unlimited expiry
+ * @param {Object} user - User object
+ * @param {number} statusCode - HTTP status code
+ * @param {Object} res - Express response object
+ * @param {boolean} redirect - Whether to redirect (default: false)
+ * @param {boolean} unlimited - Whether token should have unlimited expiry (default: false)
+ * @param {string} message - Optional success message to include in response
+ * @returns {Object} - Response with token and user data
+ */
+const createAndSendToken = (
+  user,
+  statusCode,
+  res,
+  redirect = false,
+  unlimited = false,
+  message = null
+) => {
+  const token = unlimited ? signUnlimitedToken(user._id) : signToken(user._id);
 
   const cookieOptions = {
-    expires: new Date(
-      Date.now() + AppConfig.jwt.cookieExpiry * 24 * 60 * 60 * 1000
-    ),
     httpOnly: true,
   };
+
+  // Set cookie expiry based on token type
+  if (unlimited) {
+    // For unlimited tokens, set cookie to expire in 10 years (practically unlimited)
+    cookieOptions.expires = new Date(
+      Date.now() + 10 * 365 * 24 * 60 * 60 * 1000
+    );
+  } else {
+    // For regular tokens, use configured expiry
+    cookieOptions.expires = new Date(
+      Date.now() + AppConfig.jwt.cookieExpiry * 24 * 60 * 60 * 1000
+    );
+  }
 
   // for https only
   if (AppConfig.env === "production") cookieOptions.secure = true;
@@ -30,25 +74,60 @@ const createAndSendToken = (user, statusCode, res, redirect = false) => {
 
   // remove password from output
   user.password = undefined;
-  return sendSuccessResponse(null, res, statusCode, {
+
+  const responseData = {
     token,
     user,
-  });
+  };
+
+  // Add message if provided
+  if (message) {
+    responseData.message = message;
+  }
+
+  return sendSuccessResponse(res, statusCode, responseData);
 };
 
 const signup = catchAsync(async (req, res, next) => {
   const existingUser = await User.findOne({ email: req.body.email });
   if (existingUser) {
-    return next(
-      new AppError(`EmailId Already Exists with MOL : ${existingUser.MOL}`, 400)
-    );
+    const otp = existingUser.generateOTP();
+    await emailService.sendOTPEmail(existingUser.email, otp, "signup");
+    return sendSuccessResponse(res, 200, {
+      message: "OTP sent to your email for verification",
+    });
   }
 
+  // Create user with OTP verification required
   const newUser = await User.create({
     ...req.body,
+    isVerified: false, // User needs to verify OTP first
   });
 
-  createAndSendToken(newUser, 201, res);
+  // Generate OTP and send email
+  const otp = newUser.generateOTP();
+  await newUser.save();
+
+  try {
+    await emailService.sendOTPEmail(newUser.email, otp, "signup");
+
+    // Remove sensitive data from response
+    newUser.password = undefined;
+    newUser.otp = undefined;
+    newUser.otpExpiresAt = undefined;
+
+    return sendSuccessResponse(res, 201, {
+      user: newUser,
+      message:
+        "User created successfully. Please check your email for OTP verification.",
+    });
+  } catch (error) {
+    // If email fails, delete the user and return error
+    await User.findByIdAndDelete(newUser._id);
+    return next(
+      new AppError("Failed to send OTP email. Please try again.", 500)
+    );
+  }
 });
 
 const login = catchAsync(async (req, res, next) => {
@@ -62,12 +141,133 @@ const login = catchAsync(async (req, res, next) => {
   // 2) check if user exists and password is correct
   const user = await User.findOne({ email }).select("+password");
 
-  if (!user || !(await user.correctPassword(password, user.password))) {
+  if (!user) {
+    return next(new AppError("User not found", 404));
+  }
+
+  const isPasswordCorrect = await user.correctPassword(password, user.password);
+
+  if (!isPasswordCorrect) {
     return next(new AppError("Incorrect email or password", 401));
   }
 
-  // 3) if everything ok , send token to client
+  // 3) Check if user is verified
+  if (!user.isVerified) {
+    // Generate new OTP and send email
+    const otp = user.generateOTP();
+    await user.save();
+
+    try {
+      await emailService.sendOTPEmail(user.email, otp, "login");
+
+      return sendSuccessResponse(
+        "Account not verified. OTP sent to your email for verification.",
+        res,
+        200,
+        {
+          message: "Please verify your account with OTP sent to your email",
+          requiresVerification: true,
+        }
+      );
+    } catch (error) {
+      return next(
+        new AppError("Failed to send OTP email. Please try again.", 500)
+      );
+    }
+  }
+
+  // 4) if everything ok and user is verified, send token to client
   createAndSendToken(user, 200, res);
+});
+
+const verifyOTP = catchAsync(async (req, res, next) => {
+  const { email, otp } = req.body;
+
+  if (!email || !otp) {
+    return next(new AppError("Please provide email and OTP", 400));
+  }
+
+  // Find user with OTP fields selected
+  const user = await User.findOne({ email }).select("+otp +otpExpiresAt");
+
+  if (!user) {
+    return next(new AppError("User not found", 404));
+  }
+
+  // Check if OTP is expired
+  if (user.isOTPExpired()) {
+    return next(
+      new AppError("OTP has expired. Please request a new one.", 400)
+    );
+  }
+
+  // Verify OTP
+  if (!user.verifyOTP(otp)) {
+    return next(new AppError("Invalid OTP", 400));
+  }
+
+  // Save user with updated verification status
+  await user.save();
+
+  // Send welcome email if this was a signup verification
+  if (!user.passwordChangedAt) {
+    try {
+      await emailService.sendWelcomeEmail(user.email, user.name || "User");
+    } catch (error) {
+      console.error("Failed to send welcome email:", error);
+      // Don't fail the verification if welcome email fails
+    }
+  }
+
+  // Remove sensitive data
+  user.password = undefined;
+  user.otp = undefined;
+  user.otpExpiresAt = undefined;
+
+  // Use createAndSendToken with unlimited expiry and success message
+  return createAndSendToken(
+    user,
+    200,
+    res,
+    false,
+    true,
+    "Account verified successfully"
+  );
+});
+
+const resendOTP = catchAsync(async (req, res, next) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return next(new AppError("Please provide email", 400));
+  }
+
+  const user = await User.findOne({ email }).select("+otp +otpExpiresAt");
+
+  if (!user) {
+    return next(new AppError("User not found", 404));
+  }
+
+  // Check if previous OTP is still valid (within 1 minute)
+  if (user.otpExpiresAt && user.otpExpiresAt > new Date(Date.now() - 60000)) {
+    return next(new AppError("Please wait before requesting a new OTP", 429));
+  }
+
+  // Generate new OTP
+  const otp = user.generateOTP();
+  await user.save();
+
+  try {
+    await emailService.sendOTPEmail(user.email, otp, "verification");
+
+    return sendSuccessResponse("New OTP sent to your email", res, 200, {
+      message: "OTP sent successfully",
+    });
+  } catch (error) {
+    return next(
+      new AppError("Failed to send OTP email. Please try again.", 500)
+    );
+  }
 });
 
 const protect = catchAsync(async (req, res, next) => {
@@ -108,7 +308,17 @@ const protect = catchAsync(async (req, res, next) => {
       );
     }
 
-    // 4) Check if user changed password after token was issued
+    // 4) Check if user is verified
+    if (!freshUser.isVerified) {
+      return next(
+        new AppError(
+          "Please verify your account with OTP before accessing this resource",
+          403
+        )
+      );
+    }
+
+    // 5) Check if user changed password after token was issued
     if (!freshUser.changedPasswordAfter(decoded.iat)) {
       return next(
         new AppError("User recently changed password! Please login again.", 401)
@@ -133,5 +343,7 @@ const protect = catchAsync(async (req, res, next) => {
 module.exports = {
   signup,
   login,
+  verifyOTP,
+  resendOTP,
   protect,
 };

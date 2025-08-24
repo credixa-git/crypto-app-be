@@ -1,11 +1,29 @@
 const express = require("express");
+const authController = require("../controllers/auth.controller");
+const schemaValidator = require("../middlewares/schema.validator");
+const {
+  signupSchema,
+  loginSchema,
+  otpSchema,
+} = require("../schemas/auth.schema");
+
 const router = express.Router();
 
-const schemaValidator = require("../middlewares/schema.validator");
-const { signupSchema, loginSchema } = require("../schemas/auth.schema");
-const { signup, login } = require("../controllers/auth.controller");
+// Public routes
+router.post("/signup", schemaValidator(signupSchema), authController.signup);
+router.post("/login", schemaValidator(loginSchema), authController.login);
+router.post(
+  "/verify-otp",
+  schemaValidator(otpSchema),
+  authController.verifyOTP
+);
+router.post(
+  "/resend-otp",
+  schemaValidator(otpSchema),
+  authController.resendOTP
+);
 
-router.post("/signup", schemaValidator(signupSchema), signup);
-router.post("/login", schemaValidator(loginSchema), login);
+// Protected routes
+router.use(authController.protect);
 
 module.exports = router;

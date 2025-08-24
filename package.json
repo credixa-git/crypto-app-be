@@ -12,6 +12,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@aws-sdk/client-ses": "^3.873.0",
     "bcryptjs": "^3.0.2",
     "color": "^5.0.0",
     "colors": "^1.4.0",
