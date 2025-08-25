@@ -15,4 +15,20 @@ const createTransactionSchema = Joi.object({
   type: Joi.string().valid("deposit", "withdrawal").required(),
 });
 
-module.exports = { createTransactionSchema };
+const adminStatusVerification = Joi.object({
+  status: Joi.string().valid("accepted", "rejected").optional(),
+
+  monthlyRate: Joi.number().when("status", {
+    is: "accepted",
+    then: Joi.required(),
+    otherwise: Joi.optional(),
+  }),
+
+  duration: Joi.number().when("status", {
+    is: "accepted",
+    then: Joi.required(),
+    otherwise: Joi.optional(),
+  }),
+});
+
+module.exports = { createTransactionSchema, adminStatusVerification };

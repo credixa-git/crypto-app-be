@@ -119,20 +119,46 @@ const getTransactionById = catchAsync(async (req, res, next) => {
 
 const updateTransactionStatus = catchAsync(async (req, res, next) => {
   const { id } = req.params;
-  const { status } = req.body;
-  if (!["accepted", "rejected"].includes(status))
-    return next(new AppError("Invalid status", 400));
+  const transaction = await Transaction.findById(id);
 
-  const transaction = await Transaction.findByIdAndUpdate(
-    id,
-    { status },
-    { new: true }
-  );
   if (!transaction) return next(new AppError("Transaction not found", 400));
 
-  sendSuccessResponse(res, 200, {
-    message: `Transaction ${status}`,
-    transaction,
+  const updateFields = {
+    $set: {},
+    $push: {},
+  };
+
+  const { status, monthlyRate, duration } = req.body;
+
+  if (transaction.status === "pending") {
+    updateFields.$set.status = status;
+  }
+
+  if (monthlyRate) {
+    updateFields.$set.monthlyRate = monthlyRate;
+    updateFields.$push.historicalInterestRates = {
+      rate: monthlyRate,
+      date: new Date(),
+    };
+  }
+
+  if (duration) {
+    updateFields.$set.duration = duration;
+    updateFields.$push.historicalDuration = {
+      duration,
+      date: new Date(),
+    };
+  }
+
+  const updatedTransaction = await Transaction.findByIdAndUpdate(
+    id,
+    updateFields,
+    { new: true }
+  );
+
+  return sendSuccessResponse(res, 200, {
+    message: `Transaction updated`,
+    updatedTransaction,
   });
 });
 

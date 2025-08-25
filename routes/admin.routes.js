@@ -17,6 +17,7 @@ const {
   getAllTransactions,
   getTransactionById,
 } = require("../controllers/transaction.controller");
+const { adminStatusVerification } = require("../schemas/transaction.schema");
 
 const router = express.Router();
 
@@ -38,6 +39,10 @@ router.get("/users/:id", getUserById);
 // Transaction Management Routes
 router.get("/transactions", getAllTransactions);
 router.get("/transactions/:id", getTransactionById);
-router.patch("/transactions/:id/status", updateTransactionStatus);
+router.patch(
+  "/transactions/:id",
+  schemaValidator(adminStatusVerification),
+  updateTransactionStatus
+);
 
 module.exports = router;
