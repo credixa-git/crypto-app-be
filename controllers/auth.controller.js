@@ -4,9 +4,10 @@ const { promisify } = require("util");
 const AppConfig = require("../config/appConfig");
 const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/appError");
-const emailService = require("../services/emailService");
+const emailService = require("../services/email.service");
 const User = require("../models/user.model");
 const { sendSuccessResponse } = require("../utils/apiResponse");
+const UserPortfolio = require("../models/user-portfolio.model");
 
 /**
  * Generate JWT token with configured expiry time
@@ -102,6 +103,8 @@ const signup = catchAsync(async (req, res, next) => {
     ...req.body,
     isVerified: false, // User needs to verify OTP first
   });
+
+  await UserPortfolio.create({ userId: newUser._id });
 
   // Generate OTP and send email
   const otp = newUser.generateVerificationOTP();

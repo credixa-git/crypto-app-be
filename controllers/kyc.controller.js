@@ -3,7 +3,7 @@ const AppError = require("../utils/appError");
 const { sendSuccessResponse } = require("../utils/apiResponse");
 const KYC = require("../models/kyc.model");
 const User = require("../models/user.model");
-const s3Service = require("../services/s3Service");
+const s3Service = require("../services/s3.service");
 
 /**
  * Submit KYC documents for verification

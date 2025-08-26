@@ -1,6 +1,8 @@
-const s3Service = require("../services/s3Service");
+const s3Service = require("../services/s3.service");
 
 const Transaction = require("../models/transaction.model");
+const transactionService = require("../services/transaction.service");
+
 const Wallet = require("../models/wallet.model");
 const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/appError");
@@ -163,36 +165,52 @@ const updateTransactionStatus = catchAsync(async (req, res, next) => {
 
   if (!transaction) return next(new AppError("Transaction not found", 400));
 
-  const updateFields = {
-    $set: {},
-    $push: {},
-  };
+  const { status } = req.body;
 
-  const { status, monthlyRate, duration } = req.body;
-
-  if (transaction.status === "pending") {
-    updateFields.$set.status = status;
+  if (transaction.status !== "pending") {
+    return next(new AppError("Only pending transactions can be updated", 400));
   }
 
-  if (monthlyRate) {
-    updateFields.$set.monthlyRate = monthlyRate;
-    updateFields.$push.historicalInterestRates = {
-      rate: monthlyRate,
-      date: new Date(),
-    };
+  if (status === "rejected") {
+    // If rejected, simply update the status
+    transaction.status = "rejected";
+    await transaction.save();
+    return sendSuccessResponse(res, 200, {
+      message: "Transaction rejected",
+      transaction,
+    });
   }
 
-  if (duration) {
-    updateFields.$set.duration = duration;
-    updateFields.$push.historicalDuration = {
-      duration,
-      date: new Date(),
-    };
+  switch (transaction.type) {
+    case "deposit":
+      await transactionService.creditPrincipalAmount(
+        transaction.userId,
+        transaction.amount
+      );
+      break;
+    case "withdrawal":
+      // For withdrawal, mark as accepted
+      if (transaction.withdrawalType === "principal") {
+        await transactionService.withdrawPrincipalAmount(
+          transaction.userId,
+          transaction.amount
+        );
+      } else if (transaction.withdrawalType === "interest") {
+        await transactionService.withdrawInterestAmount(
+          transaction.userId,
+          transaction.amount
+        );
+      } else {
+        return next(new AppError("Invalid withdrawal type", 400));
+      }
+      break;
+    default:
+      return next(new AppError("Invalid transaction type", 400));
   }
 
   const updatedTransaction = await Transaction.findByIdAndUpdate(
     id,
-    updateFields,
+    { status },
     { new: true }
   );
 

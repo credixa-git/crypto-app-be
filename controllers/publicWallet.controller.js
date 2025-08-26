@@ -2,7 +2,7 @@ const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/appError");
 const { sendSuccessResponse } = require("../utils/apiResponse");
 const Wallet = require("../models/wallet.model");
-const s3Service = require("../services/s3Service");
+const s3Service = require("../services/s3.service");
 
 /**
  * Get all active wallets for public use
