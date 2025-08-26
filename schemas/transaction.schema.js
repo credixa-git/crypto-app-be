@@ -8,11 +8,16 @@ const objectId = (value, helpers) => {
   return value;
 };
 
-const createTransactionSchema = Joi.object({
+const createDepositTransactionSchema = Joi.object({
   wallet: Joi.string().custom(objectId).required(),
   transactionHash: Joi.string().required(),
   amount: Joi.number().required(),
-  type: Joi.string().valid("deposit", "withdrawal").required(),
+});
+
+const createWithdrawTransactionSchema = Joi.object({
+  wallet: Joi.string().required(),
+  amount: Joi.string().required(),
+  withdrawalType: Joi.string().required().valid("principal", "interest"),
 });
 
 const adminStatusVerification = Joi.object({
@@ -31,4 +36,8 @@ const adminStatusVerification = Joi.object({
   }),
 });
 
-module.exports = { createTransactionSchema, adminStatusVerification };
+module.exports = {
+  createDepositTransactionSchema,
+  createWithdrawTransactionSchema,
+  adminStatusVerification,
+};

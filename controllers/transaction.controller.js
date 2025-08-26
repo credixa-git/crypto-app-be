@@ -6,16 +6,19 @@ const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/appError");
 const { sendSuccessResponse } = require("../utils/apiResponse");
 
-const createTransaction = catchAsync(async (req, res, next) => {
-  const { wallet, transactionHash, amount, type } = req.body;
+const createDepositTransaction = catchAsync(async (req, res, next) => {
+  const { wallet, transactionHash, amount } = req.body;
   const user = req.user._id;
   const screenshot = req.file;
+
+  if (!screenshot) return next(new AppError("Screenshot is required", 400));
 
   // Validate wallet exists
   const selectedWallet = await Wallet.findOne({
     _id: wallet,
     isActive: true,
   });
+
   if (!selectedWallet) {
     return next(new AppError("No Supported wallet found", 400));
   }
@@ -50,12 +53,41 @@ const createTransaction = catchAsync(async (req, res, next) => {
     transactionHash,
     screenshot: { key },
     amount,
-    type,
+    type: "deposit",
     status: "pending",
   });
 
-  sendSuccessResponse(res, 201, {
-    message: "Transaction created",
+  return sendSuccessResponse(res, 201, {
+    message: "Deposit transaction created",
+    transaction,
+  });
+});
+
+const createWithdrawTransaction = catchAsync(async (req, res, next) => {
+  const { wallet, withdrawalType, amount } = req.body;
+  const user = req.user._id;
+
+  // Validate wallet exists
+  const selectedWallet = await Wallet.findOne({
+    _id: wallet,
+    isActive: true,
+  });
+
+  if (!selectedWallet) {
+    return next(new AppError("No Supported wallet found", 400));
+  }
+
+  const transaction = await Transaction.create({
+    userId: user,
+    wallet,
+    amount,
+    withdrawalType,
+    type: "withdrawal",
+    status: "pending",
+  });
+
+  return sendSuccessResponse(res, 201, {
+    message: "Withdrawal transaction created",
     transaction,
   });
 });
@@ -163,7 +195,8 @@ const updateTransactionStatus = catchAsync(async (req, res, next) => {
 });
 
 module.exports = {
-  createTransaction,
+  createDepositTransaction,
+  createWithdrawTransaction,
   getAllTransactions,
   getTransactionById,
   updateTransactionStatus,

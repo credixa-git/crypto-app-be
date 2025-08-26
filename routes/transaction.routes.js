@@ -1,13 +1,14 @@
 const express = require("express");
 const router = express.Router();
 const multer = require("multer");
-const path = require("path");
 const {
-  createTransaction,
-  updateTransactionStatus,
+  createDepositTransaction,
+  createWithdrawTransaction,
 } = require("../controllers/transaction.controller");
-const requireAdmin = require("../middlewares/admin.middleware");
-const { createTransactionSchema } = require("../schemas/transaction.schema");
+const {
+  createDepositTransactionSchema,
+  createWithdrawTransactionSchema,
+} = require("../schemas/transaction.schema");
 const { protect } = require("../controllers/auth.controller");
 const schemaValidator = require("../middlewares/schema.validator");
 
@@ -29,11 +30,18 @@ const upload = multer({
 
 // User creates a transaction
 router.post(
-  "/",
+  "/deposit",
   protect,
   upload.single("screenshot"),
-  schemaValidator(createTransactionSchema),
-  createTransaction
+  schemaValidator(createDepositTransactionSchema),
+  createDepositTransaction
+);
+
+router.post(
+  "/withdraw",
+  protect,
+  schemaValidator(createWithdrawTransactionSchema),
+  createWithdrawTransaction
 );
 
 module.exports = router;

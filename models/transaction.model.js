@@ -14,40 +14,26 @@ const transactionSchema = mongoose.Schema(
     },
     transactionHash: {
       type: String,
-      required: true,
       trim: true,
     },
     screenshot: {
       key: {
         type: String,
-        required: true,
       },
     },
     amount: {
       type: Number,
       required: true,
     },
-    monthlyRate: {
-      type: Number,
-      default: 0,
-    },
-    duration: {
-      type: Number, // number of days
-      default: 0,
-    },
 
-    totalInterestEarned: { type: Number },
-    adminConfirmationDate: { type: Date },
-    historicalInterestRates: [{ rate: { type: Number }, date: { type: Date } }],
-    historicalDuration: [{ duration: { type: Number }, date: { type: Date } }],
-
-    historicalInterestEarned: [
-      {
-        earned: { type: Number },
-        rateAt: { type: Number },
-        date: { type: Date },
+    withdrawalType: {
+      type: String,
+      enum: ["principal", "interest"],
+      required: function () {
+        return this.type === "withdrawal";
       },
-    ],
+    },
+
     type: {
       type: String,
       enum: ["deposit", "withdrawal"],
@@ -58,6 +44,9 @@ const transactionSchema = mongoose.Schema(
       enum: ["pending", "accepted", "rejected"],
       default: "pending",
     },
+
+    reviewedAt: { type: Date },
+    adminNote: { type: String },
   },
   { timestamps: true }
 );
