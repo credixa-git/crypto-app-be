@@ -131,6 +131,14 @@ const getTransactionById = catchAsync(async (req, res, next) => {
 
   const transaction = await Transaction.findById(id);
 
+  if (!transaction) return next(new AppError("Transaction not found", 400));
+
+  if (!transaction.screenshot.key)
+    return sendSuccessResponse(res, 200, {
+      transaction: transaction.toObject(),
+      message: "Transaction fetched",
+    });
+
   const url = await s3Service.generatePresignedUrl(
     transaction.screenshot.key,
     3600
