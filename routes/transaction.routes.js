@@ -13,6 +13,7 @@ const {
 } = require("../schemas/transaction.schema");
 const { protect } = require("../controllers/auth.controller");
 const schemaValidator = require("../middlewares/schema.validator");
+const { getMyInterestHistory } = require("../controllers/interest.controller");
 
 // Configure multer for memory storage (files will be stored in memory before uploading to S3)
 const upload = multer({
@@ -33,6 +34,8 @@ const upload = multer({
 router.use(protect);
 
 router.get("/history", getTransactionHistory);
+
+router.get("/history/interest", getMyInterestHistory);
 
 router.post(
   "/deposit",

@@ -33,6 +33,7 @@ const creditInterest = async () => {
     await userPortfolio.save();
 
     await InterestHistory.create({
+      userId: userPortfolio.userId,
       principalAmount: userPortfolio.principalAmount,
       monthlyRate: userPortfolio.currentMonthlyRate,
       dailyInterest: todayInterest,
