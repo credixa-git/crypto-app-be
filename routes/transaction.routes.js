@@ -4,7 +4,9 @@ const multer = require("multer");
 const {
   createDepositTransaction,
   createWithdrawTransaction,
+  getTransactionHistory,
 } = require("../controllers/transaction.controller");
+const { getMyPortfolio } = require("../controllers/portfolio.controller");
 const {
   createDepositTransactionSchema,
   createWithdrawTransactionSchema,
@@ -28,10 +30,13 @@ const upload = multer({
   },
 });
 
-// User creates a transaction
+router.use(protect);
+
+router.get("/history", getTransactionHistory);
+
 router.post(
   "/deposit",
-  protect,
+
   upload.single("screenshot"),
   schemaValidator(createDepositTransactionSchema),
   createDepositTransaction
@@ -39,9 +44,12 @@ router.post(
 
 router.post(
   "/withdraw",
-  protect,
   schemaValidator(createWithdrawTransactionSchema),
   createWithdrawTransaction
 );
+
+// User portfolio
+
+router.get("/portfolio", getMyPortfolio);
 
 module.exports = router;

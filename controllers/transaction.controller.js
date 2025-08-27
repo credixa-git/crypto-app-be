@@ -8,6 +8,29 @@ const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/appError");
 const { sendSuccessResponse } = require("../utils/apiResponse");
 
+const getTransactionHistory = catchAsync(async (req, res, next) => {
+  const userId = req.user._id;
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const skip = (page - 1) * limit;
+
+  const filter = { userId };
+  if (req.query.status) filter.status = req.query.status;
+  if (req.query.type) filter.type = req.query.type;
+
+  const [transactions, total] = await Promise.all([
+    Transaction.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
+    Transaction.countDocuments(filter),
+  ]);
+
+  return sendSuccessResponse(res, 200, {
+    total,
+    transactions,
+    currentPage: page,
+    totalPages: Math.ceil(total / limit),
+  });
+});
+
 const createDepositTransaction = catchAsync(async (req, res, next) => {
   const { wallet, transactionHash, amount } = req.body;
   const user = req.user._id;
@@ -221,6 +244,7 @@ const updateTransactionStatus = catchAsync(async (req, res, next) => {
 });
 
 module.exports = {
+  getTransactionHistory,
   createDepositTransaction,
   createWithdrawTransaction,
   getAllTransactions,
