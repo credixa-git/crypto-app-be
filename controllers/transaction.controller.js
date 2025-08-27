@@ -229,7 +229,7 @@ const updateTransactionStatus = catchAsync(async (req, res, next) => {
 
   if (!transaction) return next(new AppError("Transaction not found", 400));
 
-  const { status } = req.body;
+  const { status, reason } = req.body;
 
   if (transaction.status !== "pending") {
     return next(new AppError("Only pending transactions can be updated", 400));
@@ -238,6 +238,8 @@ const updateTransactionStatus = catchAsync(async (req, res, next) => {
   if (status === "rejected") {
     // If rejected, simply update the status
     transaction.status = "rejected";
+    transaction.rejectionReason = reason || "No reason provided";
+    transaction.reviewedAt = new Date();
     await transaction.save();
     return sendSuccessResponse(res, 200, {
       message: "Transaction rejected",
@@ -274,7 +276,7 @@ const updateTransactionStatus = catchAsync(async (req, res, next) => {
 
   const updatedTransaction = await Transaction.findByIdAndUpdate(
     id,
-    { status },
+    { status, reviewedAt: new Date() },
     { new: true }
   );
 

@@ -52,6 +52,13 @@ const transactionSchema = mongoose.Schema(
       default: "pending",
     },
 
+    rejectionReason: {
+      type: String,
+      required: function () {
+        return this.status === "rejected";
+      },
+    },
+
     reviewedAt: { type: Date },
     adminNote: { type: String },
   },

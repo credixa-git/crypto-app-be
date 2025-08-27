@@ -23,6 +23,7 @@ const createWithdrawTransactionSchema = Joi.object({
 
 const adminStatusVerification = Joi.object({
   status: Joi.string().valid("accepted", "rejected").optional(),
+  reason: Joi.string().optional(),
 });
 
 const applyInterestSchema = Joi.object({
