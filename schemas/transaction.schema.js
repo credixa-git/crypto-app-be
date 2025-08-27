@@ -18,6 +18,7 @@ const createWithdrawTransactionSchema = Joi.object({
   wallet: Joi.string().required(),
   amount: Joi.string().required(),
   withdrawalType: Joi.string().required().valid("principal", "interest"),
+  withdrawalAddress: Joi.string().required(),
 });
 
 const adminStatusVerification = Joi.object({

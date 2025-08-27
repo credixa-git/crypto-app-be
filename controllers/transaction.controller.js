@@ -7,6 +7,7 @@ const Wallet = require("../models/wallet.model");
 const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/appError");
 const { sendSuccessResponse } = require("../utils/apiResponse");
+const UserPortfolio = require("../models/user-portfolio.model");
 
 const getTransactionHistory = catchAsync(async (req, res, next) => {
   const userId = req.user._id;
@@ -89,7 +90,7 @@ const createDepositTransaction = catchAsync(async (req, res, next) => {
 });
 
 const createWithdrawTransaction = catchAsync(async (req, res, next) => {
-  const { wallet, withdrawalType, amount } = req.body;
+  const { wallet, withdrawalType, amount, withdrawalAddress } = req.body;
   const user = req.user._id;
 
   // Validate wallet exists
@@ -102,11 +103,30 @@ const createWithdrawTransaction = catchAsync(async (req, res, next) => {
     return next(new AppError("No Supported wallet found", 400));
   }
 
+  // Validate amount
+  const userPortfolio = await UserPortfolio.findOne({ userId: user });
+  if (!userPortfolio) {
+    return next(new AppError("User portfolio not found", 400));
+  }
+
+  if (withdrawalType === "principal") {
+    if (amount > userPortfolio.principalAmount) {
+      return next(new AppError("Insufficient principal amount", 400));
+    }
+  } else if (withdrawalType === "interest") {
+    if (amount > userPortfolio.interestAmount) {
+      return next(new AppError("Insufficient interest amount", 400));
+    }
+  } else {
+    return next(new AppError("Invalid withdrawal type", 400));
+  }
+
   const transaction = await Transaction.create({
     userId: user,
     wallet,
     amount,
     withdrawalType,
+    withdrawalAddress,
     type: "withdrawal",
     status: "pending",
   });
@@ -122,7 +142,7 @@ const getAllTransactions = catchAsync(async (req, res, next) => {
   const limit = parseInt(req.query.limit) || 10;
 
   const skip = (page - 1) * limit;
-  const filter = { status: "pending" };
+  const filter = {};
 
   if (req.query.status) filter.status = req.query.status;
   if (req.query.type) filter.type = req.query.type;
@@ -136,10 +156,31 @@ const getAllTransactions = catchAsync(async (req, res, next) => {
     Transaction.countDocuments(filter),
   ]);
 
+  const transactionUrls = await Promise.all(
+    transactions.map(async (transaction) => {
+      if (transaction.screenshot?.key) {
+        return await s3Service.generatePresignedUrl(
+          transaction.screenshot.key,
+          3600
+        );
+      }
+      return null;
+    })
+  );
+
+  const updatedTransactions = transactions.map((transaction, index) => {
+    return {
+      ...(transaction.toObject?.() ?? transaction),
+      screenshot: transaction.screenshot?.key
+        ? { url: transactionUrls[index] }
+        : null,
+    };
+  });
+
   const totalPages = Math.ceil(total / limit);
 
   const responseData = {
-    transactions,
+    transactions: updatedTransactions,
     pagination: {
       currentPage: page,
       totalPages,

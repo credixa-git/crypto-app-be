@@ -34,6 +34,13 @@ const transactionSchema = mongoose.Schema(
       },
     },
 
+    withdrawalAddress: {
+      type: String,
+      required: function () {
+        return this.type === "withdrawal";
+      },
+    },
+
     type: {
       type: String,
       enum: ["deposit", "withdrawal"],

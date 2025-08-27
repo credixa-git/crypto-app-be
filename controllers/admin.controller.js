@@ -4,6 +4,7 @@ const { sendSuccessResponse } = require("../utils/apiResponse");
 const KYC = require("../models/kyc.model");
 const User = require("../models/user.model");
 const s3Service = require("../services/s3.service");
+const UserPortfolio = require("../models/user-portfolio.model");
 
 /**
  * Get all KYC submissions with pagination and filtering
@@ -251,9 +252,12 @@ const getUserById = catchAsync(async (req, res, next) => {
     kycWithImages = await s3Service.generateKYCImageUrls(kyc, 3600);
   }
 
+  const userPortfolio = await UserPortfolio.findOne({ userId: user._id });
+
   const userData = {
     ...user.toObject(),
     kyc: kycWithImages,
+    portfolio: userPortfolio || null,
   };
 
   return sendSuccessResponse(res, 200, { user: userData });
