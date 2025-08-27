@@ -290,6 +290,20 @@ const getUserStats = catchAsync(async (req, res, next) => {
     kycStatusCounts[stat._id] = stat.count;
   });
 
+  const [portfolioStats] = await UserPortfolio.aggregate([
+    {
+      $group: {
+        _id: null,
+        totalPrincipalAmount: { $sum: "$principalAmount" },
+        currentAccumulatedInterest: { $sum: "$currentAccumulatedInterest" },
+        totalEarnedInterest: { $sum: "$totalEarnedInterest" },
+        totalActivePortfolios: {
+          $sum: { $cond: [{ $eq: ["$remainingDays", 0] }, 0, 1] },
+        },
+      },
+    },
+  ]);
+
   const responseData = {
     totalUsers,
     verifiedUsers,
@@ -300,6 +314,7 @@ const getUserStats = catchAsync(async (req, res, next) => {
       verified: kycStatusCounts["verified"] || 0,
       rejected: kycStatusCounts["rejected"] || 0,
     },
+    portfolioStats: { ...portfolioStats, _id: undefined },
   };
 
   return sendSuccessResponse(res, 200, responseData);
