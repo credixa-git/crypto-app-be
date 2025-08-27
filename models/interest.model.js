@@ -2,12 +2,6 @@ const mongoose = require("mongoose");
 
 const InterestHistorySchema = new mongoose.Schema(
   {
-    portfolioId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "UserPortfolio",
-      index: true,
-      required: true,
-    },
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

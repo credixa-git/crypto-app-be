@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const UserPortfolio = require("../models/user-portfolio.model");
+const InterestHistory = require("../models/interest.model");
 const AppConfig = require("../config/appConfig");
 
 const creditInterest = async () => {
@@ -30,6 +31,13 @@ const creditInterest = async () => {
       (userPortfolio.totalEarnedInterest || 0) + todayInterest;
 
     await userPortfolio.save();
+
+    await InterestHistory.create({
+      principalAmount: userPortfolio.principalAmount,
+      monthlyRate: userPortfolio.currentMonthlyRate,
+      dailyInterest: todayInterest,
+      date: new Date(),
+    });
   }
 
   console.log("Interest credit process completed.".bgGreen);
