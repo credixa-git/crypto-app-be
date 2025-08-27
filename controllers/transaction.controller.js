@@ -305,11 +305,15 @@ const getTransactionStats = catchAsync(async (req, res, next) => {
     { $group: { _id: null, total: { $sum: "$amount" } } },
   ]);
 
-  const [[{ total: totalDepositedAmount }], [{ total: totalWithdrawnAmount }]] =
-    await Promise.all([
-      totalDepositedAmountAgg.exec(),
-      totalWithdrawnAmountAgg.exec(),
-    ]);
+  const [totalDepositResult, totalWithdrawResult] = await Promise.all([
+    totalDepositedAmountAgg.exec(),
+    totalWithdrawnAmountAgg.exec(),
+  ]);
+
+  const totalDepositedAmount =
+    totalDepositResult.length > 0 ? totalDepositResult[0].total : 0;
+  const totalWithdrawnAmount =
+    totalWithdrawResult.length > 0 ? totalWithdrawResult[0].total : 0;
 
   return sendSuccessResponse(res, 200, {
     totalDepositedAmount,
