@@ -16,6 +16,7 @@ const {
   updateTransactionStatus,
   getAllTransactions,
   getTransactionById,
+  getTransactionStats,
 } = require("../controllers/transaction.controller");
 const {
   adminStatusVerification,
@@ -42,6 +43,7 @@ router.get("/users/:id", getUserById);
 
 // Transaction Management Routes
 router.get("/transactions", getAllTransactions);
+router.get("/transactions/stats", getTransactionStats);
 router.get("/transactions/:id", getTransactionById);
 router.patch(
   "/transactions/:id",

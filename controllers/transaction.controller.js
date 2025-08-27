@@ -286,6 +286,42 @@ const updateTransactionStatus = catchAsync(async (req, res, next) => {
   });
 });
 
+const getTransactionStats = catchAsync(async (req, res, next) => {
+  const [deposit, withdrawal, pending, accepted, rejected] = await Promise.all([
+    Transaction.find({ type: "deposit" }).countDocuments(),
+    Transaction.find({ type: "withdrawal" }).countDocuments(),
+    Transaction.find({ status: "pending" }).countDocuments(),
+    Transaction.find({ status: "accepted" }).countDocuments(),
+    Transaction.find({ status: "rejected" }).countDocuments(),
+  ]);
+
+  const totalDepositedAmountAgg = Transaction.aggregate([
+    { $match: { type: "deposit", status: "accepted" } },
+    { $group: { _id: null, total: { $sum: "$amount" } } },
+  ]);
+
+  const totalWithdrawnAmountAgg = Transaction.aggregate([
+    { $match: { type: "withdrawal", status: "accepted" } },
+    { $group: { _id: null, total: { $sum: "$amount" } } },
+  ]);
+
+  const [[{ total: totalDepositedAmount }], [{ total: totalWithdrawnAmount }]] =
+    await Promise.all([
+      totalDepositedAmountAgg.exec(),
+      totalWithdrawnAmountAgg.exec(),
+    ]);
+
+  return sendSuccessResponse(res, 200, {
+    totalDepositedAmount,
+    totalWithdrawnAmount,
+    deposit,
+    withdrawal,
+    pending,
+    accepted,
+    rejected,
+  });
+});
+
 module.exports = {
   getTransactionHistory,
   createDepositTransaction,
@@ -293,4 +329,5 @@ module.exports = {
   getAllTransactions,
   getTransactionById,
   updateTransactionStatus,
+  getTransactionStats,
 };
