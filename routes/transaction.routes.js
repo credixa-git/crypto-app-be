@@ -36,7 +36,6 @@ router.get("/history", getTransactionHistory);
 
 router.post(
   "/deposit",
-
   upload.single("screenshot"),
   schemaValidator(createDepositTransactionSchema),
   createDepositTransaction

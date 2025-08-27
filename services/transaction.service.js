@@ -17,7 +17,7 @@ const withdrawPrincipalAmount = async (userId, withdrawAmount) => {
   }
 
   userPortfolio.principalAmount -= withdrawAmount;
-  await user.save();
+  await userPortfolio.save();
 };
 
 const withdrawInterestAmount = async (userId, withdrawAmount) => {
@@ -28,7 +28,7 @@ const withdrawInterestAmount = async (userId, withdrawAmount) => {
     throw new Error("Insufficient interest amount");
 
   userPortfolio.currentAccumulatedInterest -= withdrawAmount;
-  await user.save();
+  await userPortfolio.save();
 };
 
 module.exports = {

@@ -17,7 +17,11 @@ const {
   getAllTransactions,
   getTransactionById,
 } = require("../controllers/transaction.controller");
-const { adminStatusVerification } = require("../schemas/transaction.schema");
+const {
+  adminStatusVerification,
+  applyInterestSchema,
+} = require("../schemas/transaction.schema");
+const { applyInterest } = require("../controllers/interest.controller");
 
 const router = express.Router();
 
@@ -44,5 +48,7 @@ router.patch(
   schemaValidator(adminStatusVerification),
   updateTransactionStatus
 );
+
+router.patch("/interest", schemaValidator(applyInterestSchema), applyInterest);
 
 module.exports = router;

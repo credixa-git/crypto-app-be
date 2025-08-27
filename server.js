@@ -6,6 +6,19 @@ const cors = require("cors");
 const morgan = require("morgan");
 const mongoose = require("mongoose");
 const AppError = require("./utils/appError.js");
+const cron = require("node-cron");
+const creditInterest = require("./crons/interestCreditCron.js");
+const ping = require("./crons/ping.js");
+
+cron.schedule("*/5 * * * *", () => {
+  console.log("Pinging to keep the server awake...");
+  ping();
+});
+
+cron.schedule("0 0 * * *", () => {
+  console.log("running a task every midnight to credit interest");
+  creditInterest();
+});
 
 console.info("Server initialization started...".yellow);
 

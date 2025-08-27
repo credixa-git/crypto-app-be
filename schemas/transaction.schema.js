@@ -24,8 +24,15 @@ const adminStatusVerification = Joi.object({
   status: Joi.string().valid("accepted", "rejected").optional(),
 });
 
+const applyInterestSchema = Joi.object({
+  userId: Joi.string().custom(objectId).required(),
+  duration: Joi.number().min(0).optional(),
+  interestRate: Joi.number().min(0).max(100).optional(),
+});
+
 module.exports = {
   createDepositTransactionSchema,
   createWithdrawTransactionSchema,
   adminStatusVerification,
+  applyInterestSchema,
 };
