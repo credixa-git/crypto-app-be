@@ -8,6 +8,7 @@ const {
   resetPasswordSchema,
   forgotPasswordSchema,
 } = require("../schemas/auth.schema");
+const { getNotifications } = require("../controllers/notification.controller");
 
 const router = express.Router();
 
@@ -42,5 +43,7 @@ router.post(
 
 // Protected routes
 router.use(authController.protect);
+
+router.get("/notification", getNotifications);
 
 module.exports = router;

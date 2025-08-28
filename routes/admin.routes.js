@@ -22,7 +22,29 @@ const {
   adminStatusVerification,
   applyInterestSchema,
 } = require("../schemas/transaction.schema");
+const { createNotificationSchema } = require("../schemas/notification.schema");
 const { applyInterest } = require("../controllers/interest.controller");
+const {
+  getNotifications,
+  createNotification,
+  deleteNotification,
+} = require("../controllers/notification.controller");
+const multer = require("multer");
+
+// Configure multer for memory storage (QR images will be stored in memory before uploading to S3)
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith("image/")) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only image files are allowed"), false);
+    }
+  },
+});
 
 const router = express.Router();
 
@@ -52,5 +74,14 @@ router.patch(
 );
 
 router.patch("/interest", schemaValidator(applyInterestSchema), applyInterest);
+
+router.get("/notification", getNotifications);
+router.post(
+  "/notification",
+  upload.single("image"),
+  schemaValidator(createNotificationSchema),
+  createNotification
+);
+router.delete("/notification/:id", deleteNotification);
 
 module.exports = router;
