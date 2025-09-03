@@ -80,7 +80,7 @@ process.on("uncaughtException", (err) => {
 process.on("unhandledRejection", (err) => {
   console.error("UNHANDLED REJECTION! 💥 Shutting down...".red);
   console.error(err.name, err.message);
-  server.close(() => {
+  app.close(() => {
     process.exit(1);
   });
 });
@@ -88,7 +88,7 @@ process.on("unhandledRejection", (err) => {
 // Handle SIGTERM
 process.on("SIGTERM", () => {
   console.error("👋 SIGTERM RECEIVED. Shutting down gracefully".yellow);
-  server.close(() => {
+  app.close(() => {
     console.error("💥 Process terminated!".red);
   });
 });
