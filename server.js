@@ -64,33 +64,33 @@ async function initialize() {
   await mongoose.connect(AppConfig.database);
   console.info("DB connection successful".green.bold);
 
-  app.listen(AppConfig.port, (err) => {
+  const server = app.listen(AppConfig.port, (err) => {
     console.info(`Server listening on port ${AppConfig.port}`.blue.bold);
   });
-}
 
-// Handle uncaught exceptions
-process.on("uncaughtException", (err) => {
-  console.error("UNCAUGHT EXCEPTION! 💥 Shutting down...".red);
-  console.error(err.name, err.message);
-  process.exit(1);
-});
-
-// Handle unhandled promise rejections
-process.on("unhandledRejection", (err) => {
-  console.error("UNHANDLED REJECTION! 💥 Shutting down...".red);
-  console.error(err.name, err.message);
-  app.close(() => {
+  // Handle uncaught exceptions
+  process.on("uncaughtException", (err) => {
+    console.error("UNCAUGHT EXCEPTION! 💥 Shutting down...".red);
+    console.error(err.name, err.message);
     process.exit(1);
   });
-});
 
-// Handle SIGTERM
-process.on("SIGTERM", () => {
-  console.error("👋 SIGTERM RECEIVED. Shutting down gracefully".yellow);
-  app.close(() => {
-    console.error("💥 Process terminated!".red);
+  // Handle unhandled promise rejections
+  process.on("unhandledRejection", (err) => {
+    console.error("UNHANDLED REJECTION! 💥 Shutting down...".red);
+    console.error(err.name, err.message);
+    server.close(() => {
+      process.exit(1);
+    });
   });
-});
+
+  // Handle SIGTERM
+  process.on("SIGTERM", () => {
+    console.error("👋 SIGTERM RECEIVED. Shutting down gracefully".yellow);
+    server.close(() => {
+      console.error("💥 Process terminated!".red);
+    });
+  });
+}
 
 initialize();
