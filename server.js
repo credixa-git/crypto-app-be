@@ -17,7 +17,7 @@ cron.schedule("*/5 * * * *", () => {
 
 // 0 0 * * * = At 00:00 (midnight) every day
 // */10 * * * * = Every 10 minutes
-cron.schedule("*/10 * * * *", () => {
+cron.schedule("0 0 * * *", () => {
   console.log("running a task every midnight to credit interest");
   creditInterest();
 });
