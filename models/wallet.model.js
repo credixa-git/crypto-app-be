@@ -14,6 +14,7 @@ const walletSchema = mongoose.Schema(
       trim: true,
       enum: [
         "Ethereum",
+        "Tron",
         "Binance Smart Chain",
         "Polygon",
         "Solana",

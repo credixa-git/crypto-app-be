@@ -11,6 +11,7 @@ const createWalletSchema = Joi.object({
   chain: Joi.string()
     .valid(
       "Ethereum",
+      "Tron",
       "Binance Smart Chain",
       "Polygon",
       "Solana",
@@ -80,6 +81,7 @@ const updateWalletSchema = Joi.object({
   chain: Joi.string()
     .valid(
       "Ethereum",
+      "Tron",
       "Binance Smart Chain",
       "Polygon",
       "Solana",
@@ -140,6 +142,7 @@ const searchWalletSchema = Joi.object({
   chain: Joi.string()
     .valid(
       "Ethereum",
+      "Tron",
       "Binance Smart Chain",
       "Polygon",
       "Solana",
